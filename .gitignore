@@ -1,0 +1,13 @@
+node_modules/
+client/node_modules/
+dist/
+client/dist/
+.env
+.env.local
+contracts/.env
+contracts/out/
+contracts/cache/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
