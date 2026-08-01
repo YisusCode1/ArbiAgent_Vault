@@ -9,13 +9,13 @@ categoría **IA - Blockchain**.
 
 ---
 
-## 🎯 El problema
+##  El problema
 
 Gestionar rendimiento en DeFi manualmente implica monitorear tasas,
 mover fondos entre protocolos, y reaccionar a cambios de mercado
 constantemente — algo poco práctico para la mayoría de usuarios.
 
-## 💡 La solución
+##  La solución
 
 Un vault donde:
 
@@ -32,7 +32,7 @@ Un vault donde:
 
 ---
 
-## 🏗️ Arquitectura
+##  Arquitectura
 
 ```
 ┌─────────────┐      firma EIP-712      ┌──────────────────┐
@@ -62,7 +62,7 @@ realmente vino de la IA y no fue falsificada ni alterada.
 
 ---
 
-## 📂 Estructura del repositorio
+##  Estructura del repositorio
 
 ```
 ArbiAgent/
@@ -80,7 +80,7 @@ ArbiAgent/
 
 ---
 
-## 🛠️ Stack tecnológico
+##  Stack tecnológico
 
 | Capa | Tecnología |
 |---|---|
@@ -94,7 +94,7 @@ ArbiAgent/
 
 ---
 
-## 🚀 Cómo correr el proyecto
+##  Cómo correr el proyecto
 
 ### Smart Contracts
 
@@ -129,7 +129,7 @@ docker compose up
 
 ---
 
-## 📜 Contrato desplegado
+##  Contrato desplegado
 
 | Red | Dirección |
 |---|---|
@@ -139,7 +139,7 @@ Verificado en Arbiscan: `[pendiente]`
 
 ---
 
-## 🔑 Decisiones de diseño relevantes
+##  Decisiones de diseño relevantes
 
 - **ERC-4626**: estándar de la industria para vaults tokenizados,
   compatible con cualquier herramienta/librería que ya sepa leerlo.
@@ -155,7 +155,7 @@ Verificado en Arbiscan: `[pendiente]`
 
 ---
 
-## 👥 Equipo y roles
+##  Equipo y roles
 
 | Rol | Responsable |
 |---|---|
@@ -166,7 +166,7 @@ Verificado en Arbiscan: `[pendiente]`
 
 ---
 
-## ⚠️ Nota sobre el modo demo
+##  Nota sobre el modo demo
 
 Este proyecto corre en **testnet (Arbitrum Sepolia)** con fondos de
 prueba. No se manejan activos reales. Todas las operaciones mostradas
