@@ -21,6 +21,24 @@ solo firma mensajes off-chain. La dirección pública correspondiente
 (`aiAgent`) es la que se configura en el contrato al desplegarlo.
 
 ---
+## 1.5. Cómo leer el rendimiento actual de Aave
+
+Antes de decidir cuánto rebalancear, tu agente necesita el APY actual del
+activo en Aave V3. Se lee directo del contrato `Pool` de Aave:
+
+\`\`\`python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider(RPC_URL_ARBITRUM_SEPOLIA))
+pool = w3.eth.contract(address=AAVE_POOL_ADDRESS, abi=AAVE_POOL_ABI)
+
+reserve_data = pool.functions.getReserveData(ASSET_ADDRESS).call()
+liquidity_rate = reserve_data[2]  # currentLiquidityRate, formato "ray" (1e27)
+apy = liquidity_rate / 1e27
+\`\`\`
+
+*(Nota: en testnet no hay Subgraph público de Aave, así que esta lectura
+directa on-chain es el único método confiable acá.)*
 
 ## 2. Función que vas a llamar
 
@@ -159,6 +177,12 @@ usando el ABI del contrato (se comparte apenas esté compilado/verificado).
   2. Firmar con la función de arriba.
   3. Enviar la tx a la red (o devolver la firma para que otro servicio la envíe).
   4. Loggear el evento `SignalExecuted` emitido por el contrato como confirmación.
+
+  - **Exponer el contexto de la decisión**: el equipo de frontend necesita
+  mostrar mensajes tipo "se envió 30% al protocolo por un rendimiento del
+  5%". Para eso, guarda junto con cada señal firmada (indexado por `nonce`):
+  el APY detectado, un texto corto de la razón, y el timestamp. Expón esto
+  en un endpoint `GET /signals/{nonce}`.
 
 ---
 
