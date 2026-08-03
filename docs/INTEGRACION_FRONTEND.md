@@ -117,3 +117,26 @@ de frontend (wagmi/viem lo usa directo).
 - Avisar cuando el contrato esté verificado en Arbiscan, para que puedas
   linkear directo a las transacciones desde la UI si quieres ese detalle
   extra en el demo.
+
+## 7. Contexto de la decisión de la IA (para mensajes tipo "se envió X% por Y% de rendimiento")
+
+El evento `SignalExecuted` trae los montos y la ganancia generada, pero
+**no** el APY que motivó la decisión — ese dato vive en el backend, no on-chain.
+
+Para mostrar mensajes como "Se envió 30% de lo depositado al protocolo ya
+que tiene un rendimiento del 5%", el flujo es:
+
+1. Escuchas el evento `SignalExecuted` (te da el `nonce` y los montos)
+2. Con ese `nonce`, pides al backend: `GET /signals/{nonce}`
+3. El backend responde con el contexto que usó la IA para decidir (APY
+   detectado, razón, timestamp)
+
+*(Pendiente de nuestro lado: confirmar el endpoint exacto con el equipo
+de backend/IA — se agregará aquí cuando esté listo.)*
+
+## IMPORTANTE
+El usuario nunca interactúa con Aave directamente. `deposit()`
+mete el activo al vault y entrega shares del vault mismo. Es la IA quien,
+después, decide cuánto de esa liquidez mandar a Aave vía `executeSignal()`.
+Las shares del usuario ganan valor con el tiempo porque representan una
+porción del vault completo (capital parado + capital en Aave).
