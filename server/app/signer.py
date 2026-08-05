@@ -30,43 +30,47 @@ def sign_eip712_rebalance_signal(
     if not pk.startswith("0x"):
         pk = "0x" + pk
 
-    if HAS_ETH_ACCOUNT:
-        try:
-            domain_data = {
-                "name": "ArbiAgentVault",
-                "version": "1",
-                "chainId": int(settings.CHAIN_ID),
-                "verifyingContract": target_vault
-            }
+    # FIX: Validar instalacion de eth_account antes de intentar firmar
+    if not HAS_ETH_ACCOUNT:
+        raise RuntimeError(
+            "eth_account no esta instalado. Instalar con: pip install eth-account"
+        )
 
-            message_types = {
-                "RebalanceSignal": [
-                    {"name": "amountToSupply", "type": "uint256"},
-                    {"name": "amountToWithdraw", "type": "uint256"},
-                    {"name": "profitGenerated", "type": "uint256"},
-                    {"name": "nonce", "type": "uint256"},
-                    {"name": "deadline", "type": "uint256"}
-                ]
-            }
+    try:
+        domain_data = {
+            "name": "ArbiAgentVault",
+            "version": "1",
+            "chainId": int(settings.CHAIN_ID),
+            "verifyingContract": target_vault
+        }
 
-            message_data = {
-                "amountToSupply": int(amount_to_supply),
-                "amountToWithdraw": int(amount_to_withdraw),
-                "profitGenerated": int(profit_generated),
-                "nonce": int(nonce),
-                "deadline": int(deadline)
-            }
+        message_types = {
+            "RebalanceSignal": [
+                {"name": "amountToSupply", "type": "uint256"},
+                {"name": "amountToWithdraw", "type": "uint256"},
+                {"name": "profitGenerated", "type": "uint256"},
+                {"name": "nonce", "type": "uint256"},
+                {"name": "deadline", "type": "uint256"}
+            ]
+        }
 
-            signable_message = encode_typed_data(
-                domain_data=domain_data,
-                message_types=message_types,
-                message_data=message_data
-            )
-            signed_message = Account.sign_message(signable_message, private_key=pk)
-            sig_hex = signed_message.signature.hex()
-            return sig_hex if sig_hex.startswith("0x") else "0x" + sig_hex
-        except Exception as e:
-            logger.error(f"Error al calcular firma EIP-712 con eth_account: {e}")
+        message_data = {
+            "amountToSupply": int(amount_to_supply),
+            "amountToWithdraw": int(amount_to_withdraw),
+            "profitGenerated": int(profit_generated),
+            "nonce": int(nonce),
+            "deadline": int(deadline)
+        }
 
-    # Fallback si eth_account no esta instalado en el sistema local
-    return "0x" + secrets.token_hex(65)
+        signable_message = encode_typed_data(
+            domain_data=domain_data,
+            message_types=message_types,
+            message_data=message_data
+        )
+        signed_message = Account.sign_message(signable_message, private_key=pk)
+        sig_hex = signed_message.signature.hex()
+        return sig_hex if sig_hex.startswith("0x") else "0x" + sig_hex
+        
+    except Exception as e:
+        logger.error(f"Error al calcular firma EIP-712 con eth_account: {e}")
+        raise  # FIX: Relanzar el error en vez de devolver una firma falsa

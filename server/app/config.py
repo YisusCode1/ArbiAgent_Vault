@@ -22,7 +22,7 @@ class Settings:
         self.CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "60"))
         self.AI_AGENT_ADDRESS = os.getenv("AI_AGENT_ADDRESS", "0x4039157EbC9143Def677Ac95cb3111eEaCd68dED")
         self.AI_AGENT_PRIVATE_KEY = os.getenv("AI_AGENT_PRIVATE_KEY", "80e21d9c9f0034cf8d0ccc2b23cbbf181bec12eb45c5e3cdaef488e50eebdd9f")
-        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "0x8A731D082A895D940a02128a3A8174e92410aEc1")
+        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "0x8a731d082a895d940a02128a3a8174e92410aec1")
         self.CHAIN_ID = int(os.getenv("CHAIN_ID", "421614"))
 
 settings = Settings()
