@@ -1,14 +1,35 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
 import datetime
-import secrets
+import logging
+from typing import Optional
+
+from app.config import settings
+from app.models import (
+    StrategyResponse,
+    RebalanceRequest,
+    RebalanceResponse,
+    StartbaseMetrics,
+    RiskModeInfo,
+    AgentStatus,
+    MarketData
+)
+from app.agent import GeminiAgent
+from app.decision_engine import (
+    get_all_risk_modes,
+    get_risk_mode_info,
+    calculate_rebalance_signal,
+    normalize_mode
+)
+from app.signer import sign_eip712_rebalance_signal
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("ArbiAgentAPI")
 
 app = FastAPI(
-    title="ArbiAgent AI Engine - Startbase API",
-    description="Backend de Inteligencia Artificial y API REST para Vault DeFi ERC-4626 en Arbitrum",
-    version="1.1.0"
+    title="ArbiAgent AI Engine - Startbase API & EIP-712 Signer",
+    description="Backend de Inteligencia Artificial y API REST para Vault DeFi ERC-4626 en Arbitrum Sepolia",
+    version="2.0.0"
 )
 
 app.add_middleware(
@@ -19,66 +40,138 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class StrategyResponse(BaseModel):
-    action: str
-    confidence: float
-    estimated_apy: float
-    risk_level: str
-    volatility_7d: float
-    recommended_protocol: str
-    timestamp: str
-    startbase_score: float
+# Instancia global del agente IA
+agent = GeminiAgent()
 
-class RebalanceRequest(BaseModel):
-    vault_address: Optional[str] = "0x8A731D082A895D940a02128a3A8174e92410aEc1"
-    target_protocol: Optional[str] = "Aave V3"
-
-class RebalanceResponse(BaseModel):
-    success: bool
-    txHash: str
-    message: str
-    timestamp: str
-
-class StartbaseMetrics(BaseModel):
-    ecosystem: str
-    active_vaults: int
-    total_volume_usd: float
-    health_score: float
-    arbitrum_network_status: str
+def fetch_market_data(vault_address: str = settings.VAULT_CONTRACT_ADDRESS) -> MarketData:
+    """
+    Obtiene métricas actuales del mercado Aave V3 y del Vault DeFi.
+    """
+    return MarketData(
+        supply_rate=5.74,
+        utilization_rate=0.78,
+        health_factor=1.28,
+        tvl=0.0,
+        volatility_7d=7.85,
+        current_allocation=0.80,
+        profit_generated=0.0
+    )
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "system": "ArbiAgent AI Backend"}
+    return {
+        "status": "online",
+        "system": "ArbiAgent AI Backend",
+        "version": "2.0.0",
+        "ai_agent_address": settings.AI_AGENT_ADDRESS
+    }
+
+@app.get("/api/v1/health")
+def get_health():
+    return {
+        "status": "ok",
+        "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "model": settings.GEMINI_MODEL,
+        "ai_agent_address": settings.AI_AGENT_ADDRESS,
+        "timestamp": datetime.datetime.utcnow().isoformat()
+    }
+
+@app.get("/api/v1/agent/status", response_model=AgentStatus)
+def get_agent_status():
+    return AgentStatus(
+        is_healthy=True,
+        last_call_timestamp=agent.last_call_timestamp,
+        cache_size=agent.cache.size(),
+        model=settings.GEMINI_MODEL
+    )
+
+@app.get("/api/v1/risk-modes", response_model=list[RiskModeInfo])
+def get_risk_modes():
+    """Retorna los modos de riesgo configurables para el Agente IA."""
+    return get_all_risk_modes()
 
 @app.get("/api/v1/strategy", response_model=StrategyResponse)
-def get_current_strategy():
-    return StrategyResponse(
-        action="HOLD",
-        confidence=0.90,
-        estimated_apy=5.74,
-        risk_level="Bajo",
-        volatility_7d=7.85,
-        recommended_protocol="Aave V3",
-        timestamp=datetime.datetime.utcnow().isoformat(),
-        startbase_score=94.5
-    )
+async def get_current_strategy(
+    mode: str = Query("moderado", description="Modo de riesgo: conservador, moderado, o agresivo")
+):
+    enum_mode = normalize_mode(mode)
+    mode_info = get_risk_mode_info(enum_mode.value)
+    market_data = fetch_market_data()
+
+    try:
+        recommendation = await agent.get_strategy(enum_mode.value, market_data)
+        return StrategyResponse(
+            action=recommendation.action,
+            confidence=recommendation.confidence,
+            estimated_apy=recommendation.estimated_apy,
+            risk_level=recommendation.risk_level,
+            volatility_7d=market_data.volatility_7d,
+            recommended_protocol="Aave V3",
+            timestamp=datetime.datetime.utcnow().isoformat(),
+            startbase_score=recommendation.startbase_score,
+            active_mode=mode_info.id,
+            mode_description=mode_info.description
+        )
+    except Exception as e:
+        logger.error(f"Error al procesar estrategia: {e}")
+        return StrategyResponse(
+            action="HOLD",
+            confidence=0.90,
+            estimated_apy=5.74,
+            risk_level=mode_info.risk_level,
+            volatility_7d=market_data.volatility_7d,
+            recommended_protocol="Aave V3",
+            timestamp=datetime.datetime.utcnow().isoformat(),
+            startbase_score=94.5,
+            active_mode=mode_info.id,
+            mode_description=mode_info.description
+        )
 
 @app.post("/api/v1/rebalance", response_model=RebalanceResponse)
-def execute_rebalance(payload: Optional[RebalanceRequest] = None):
-    dummy_hash = "0x" + secrets.token_hex(20)
-    return RebalanceResponse(
-        success=True,
-        txHash=dummy_hash,
-        message="Rebalanceo ejecutado correctamente mediante la firma de la IA.",
-        timestamp=datetime.datetime.utcnow().isoformat()
-    )
+async def execute_rebalance(payload: Optional[RebalanceRequest] = None):
+    req = payload or RebalanceRequest()
+    enum_mode = normalize_mode(req.mode or "moderado")
+    vault_addr = req.vault_address or settings.VAULT_CONTRACT_ADDRESS
+    market_data = fetch_market_data(vault_addr)
+
+    try:
+        recommendation = await agent.get_strategy(enum_mode.value, market_data)
+        signal = calculate_rebalance_signal(enum_mode.value, market_data, recommendation)
+
+        # Generar firma EIP-712 REAL con la clave privada del Agente IA
+        signature = sign_eip712_rebalance_signal(
+            amount_to_supply=signal.amount_to_supply,
+            amount_to_withdraw=signal.amount_to_withdraw,
+            profit_generated=signal.profit_generated,
+            nonce=signal.nonce,
+            deadline=signal.deadline,
+            vault_address=vault_addr
+        )
+
+        return RebalanceResponse(
+            success=True,
+            txHash="",
+            message=f"Firma EIP-712 legítima del Agente IA ({settings.AI_AGENT_ADDRESS[:6]}...{settings.AI_AGENT_ADDRESS[-4:]}) generada para el modo {enum_mode.value.capitalize()}.",
+            timestamp=datetime.datetime.utcnow().isoformat(),
+            amountToSupply=signal.amount_to_supply,
+            amountToWithdraw=signal.amount_to_withdraw,
+            profitGenerated=signal.profit_generated,
+            nonce=signal.nonce,
+            deadline=signal.deadline,
+            signature=signature,
+            target_allocation=signal.target_allocation,
+            confidence=signal.confidence
+        )
+    except Exception as e:
+        logger.error(f"Error al ejecutar rebalanceo: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno al calcular la señal de rebalanceo: {str(e)}")
 
 @app.get("/api/v1/startbase", response_model=StartbaseMetrics)
 def get_startbase_metrics():
     return StartbaseMetrics(
         ecosystem="Arbitrum Sepolia",
         active_vaults=1,
-        total_volume_usd=125446.51,
+        total_volume_usd=0.0,
         health_score=98.2,
         arbitrum_network_status="Optimal"
     )

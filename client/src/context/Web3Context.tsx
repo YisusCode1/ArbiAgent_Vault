@@ -26,28 +26,28 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const connectWallet = useCallback(async () => {
     setWallet((prev) => ({ ...prev, isConnecting: true, error: null }));
     try {
-      const { account, chainId, balance, isDemo } = await Web3Service.connectWallet();
+      const { account, chainId, balance } = await Web3Service.connectWallet();
       setWallet({
         account,
         chainId,
         isConnected: true,
         isConnecting: false,
-        isDemo,
+        isDemo: false,
         error: null,
         balance
       });
       localStorage.setItem('arbiagent_wallet_connected', 'true');
     } catch (err: any) {
       setWallet({
-        account: '0x7Acb8291045c4819d92e59104f68',
-        chainId: ARBITRUM_SEPOLIA_CHAIN_ID,
-        isConnected: true,
+        account: null,
+        chainId: null,
+        isConnected: false,
         isConnecting: false,
-        isDemo: true,
-        error: null,
-        balance: '1.2500'
+        isDemo: false,
+        error: err?.message || 'Error al conectar la wallet MetaMask.',
+        balance: '0'
       });
-      localStorage.setItem('arbiagent_wallet_connected', 'true');
+      localStorage.removeItem('arbiagent_wallet_connected');
     }
   }, []);
 
@@ -106,9 +106,6 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
           window.ethereum.removeListener('chainChanged', handleChainChanged);
         }
       };
-    } else {
-      // Si no hay MetaMask, auto-conectar modo demo para que todos los botones funcionen inmediatamente
-      connectWallet();
     }
   }, [connectWallet, disconnectWallet]);
 
