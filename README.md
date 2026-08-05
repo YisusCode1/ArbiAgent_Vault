@@ -133,9 +133,9 @@ docker compose up
 
 | Red | Dirección |
 |---|---|
-| Arbitrum Sepolia | `[pendiente de deploy]` |
+| Arbitrum Sepolia | `0x9271faFfEa4e430352F9d6a585b712b0922102C3` |
 
-Verificado en Arbiscan: `[pendiente]`
+Verificado en Arbiscan: https://sepolia.arbiscan.io/address/0x9271faFfEa4e430352F9d6a585b712b0922102C3#code
 
 ---
 
