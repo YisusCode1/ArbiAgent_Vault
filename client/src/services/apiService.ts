@@ -14,7 +14,8 @@ export class ApiService {
   public static async getAIStrategy(mode: RiskMode = 'moderado'): Promise<StrategyResponse> {
     const response = await fetch(`${API_BASE_URL}/strategy?mode=${mode}`);
     if (!response.ok) {
-      throw new Error(`Error HTTP ${response.status}: No se pudo obtener la estrategia de IA.`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.detail || `Error HTTP ${response.status}: No se pudo obtener la estrategia de IA.`);
     }
     const data: StrategyResponse = await response.json();
     return data;

@@ -14,7 +14,8 @@ export const EstrategiaIAView: React.FC = () => {
     isExecuting,
     executionResult,
     executeStrategy,
-    fetchStrategy
+    fetchStrategy,
+    fetchError
   } = useStrategy();
 
   const defaultModes: RiskModeInfo[] = [
@@ -103,6 +104,18 @@ export const EstrategiaIAView: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 text-white font-sans">
+      
+      {/* ALERTA DE ERROR CRITICO DE NODO/API */}
+      {fetchError && (
+        <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-bold text-red-400">Alerta de Sistema</h3>
+            <p className="text-sm text-red-200/80 mt-1">{fetchError}</p>
+          </div>
+        </div>
+      )}
+
       {/* SECCION DE SELECCION DE MODO DE RIESGO */}
       <div className="bg-[#0D1424] border border-cyan-900/20 rounded-xl p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

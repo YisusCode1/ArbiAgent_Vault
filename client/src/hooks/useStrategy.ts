@@ -31,6 +31,7 @@ export const useStrategy = () => {
   const [isLoadingModes, setIsLoadingModes] = useState<boolean>(false);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<{ success: boolean; txHash: string; message: string } | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchRiskModes = useCallback(async () => {
     setIsLoadingModes(true);
@@ -47,11 +48,12 @@ export const useStrategy = () => {
   const fetchStrategy = useCallback(async (modeToFetch?: RiskMode) => {
     const targetMode = modeToFetch || riskMode;
     setIsLoading(true);
+    setFetchError(null);
     try {
       const data = await ApiService.getAIStrategy(targetMode);
       setStrategy(data);
-    } catch {
-      // Mantiene estado fallback
+    } catch (err: any) {
+      setFetchError(err.message || "Fallo de conexión crítico.");
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +99,7 @@ export const useStrategy = () => {
     isLoadingModes,
     isExecuting,
     executionResult,
+    fetchError,
     fetchStrategy: () => fetchStrategy(riskMode),
     executeStrategy
   };

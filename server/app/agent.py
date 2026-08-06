@@ -61,7 +61,11 @@ class GeminiAgent:
 
         # Fallback elegante si Gemini falla o no responde
         logger.warning(f"Usando estrategia fallback para modo {enum_mode.value}")
-        return self._get_fallback_recommendation(enum_mode, market_data)
+        fallback_rec = self._get_fallback_recommendation(enum_mode, market_data)
+        
+        # Cachear el fallback temporalmente para evitar la espiral de requests (death spiral) en caso de limitacion de cuota (429)
+        self.cache.set(cache_key, fallback_rec.model_dump() if hasattr(fallback_rec, 'model_dump') else fallback_rec.dict())
+        return fallback_rec
 
     async def _call_gemini_with_retry(self, system_prompt: str, user_prompt: str) -> Optional[Dict[str, Any]]:
         retries = settings.GEMINI_MAX_RETRIES
@@ -103,9 +107,17 @@ class GeminiAgent:
                 return json.loads(clean_text)
 
             except Exception as e:
-                logger.error(f"Intento {attempt + 1}/{retries + 1} fallido al llamar a Gemini: {e}")
+                error_str = str(e)
+                logger.error(f"Intento {attempt + 1}/{retries + 1} fallido al llamar a Gemini: {error_str}")
+                
+                # Circuit Breaker: Si es error de cuota (429), salir rapido para usar el fallback sin esperar inutilmente
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    logger.warning("Limite de cuota (429) detectado. Abortando reintentos.")
+                    return None
+
                 if attempt < retries:
-                    time.sleep(1.0 * (attempt + 1))
+                    import asyncio
+                    await asyncio.sleep(1.0 * (attempt + 1))
         return None
 
     def _build_system_prompt(self, mode: RiskMode) -> str:

@@ -22,6 +22,7 @@ from app.decision_engine import (
     normalize_mode
 )
 from app.signer import sign_eip712_rebalance_signal
+from app.market_data import fetch_market_data
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("ArbiAgentAPI")
@@ -42,20 +43,6 @@ app.add_middleware(
 
 # Instancia global del agente IA
 agent = GeminiAgent()
-
-def fetch_market_data(vault_address: str = settings.VAULT_CONTRACT_ADDRESS) -> MarketData:
-    """
-    Obtiene métricas actuales del mercado Aave V3 y del Vault DeFi.
-    """
-    return MarketData(
-        supply_rate=5.74,
-        utilization_rate=0.78,
-        health_factor=1.28,
-        tvl=0.0,
-        volatility_7d=7.85,
-        current_allocation=0.80,
-        profit_generated=0.0
-    )
 
 @app.get("/")
 def read_root():
@@ -96,9 +83,8 @@ async def get_current_strategy(
 ):
     enum_mode = normalize_mode(mode)
     mode_info = get_risk_mode_info(enum_mode.value)
-    market_data = fetch_market_data()
-
     try:
+        market_data = fetch_market_data()
         recommendation = await agent.get_strategy(enum_mode.value, market_data)
         return StrategyResponse(
             action=recommendation.action,
@@ -114,27 +100,15 @@ async def get_current_strategy(
         )
     except Exception as e:
         logger.error(f"Error al procesar estrategia: {e}")
-        return StrategyResponse(
-            action="HOLD",
-            confidence=0.90,
-            estimated_apy=5.74,
-            risk_level=mode_info.risk_level,
-            volatility_7d=market_data.volatility_7d,
-            recommended_protocol="Aave V3",
-            timestamp=datetime.datetime.utcnow().isoformat(),
-            startbase_score=94.5,
-            active_mode=mode_info.id,
-            mode_description=mode_info.description
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/rebalance", response_model=RebalanceResponse)
 async def execute_rebalance(payload: Optional[RebalanceRequest] = None):
     req = payload or RebalanceRequest()
     enum_mode = normalize_mode(req.mode or "moderado")
     vault_addr = req.vault_address or settings.VAULT_CONTRACT_ADDRESS
-    market_data = fetch_market_data(vault_addr)
-
     try:
+        market_data = fetch_market_data(vault_addr)
         recommendation = await agent.get_strategy(enum_mode.value, market_data)
         signal = calculate_rebalance_signal(enum_mode.value, market_data, recommendation)
 
