@@ -5,6 +5,7 @@ client/dist/
 .env
 .env.local
 contracts/.env
+server/.env
 contracts/out/
 contracts/cache/
 __pycache__/

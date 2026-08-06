@@ -24,7 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 
-  const isWrongNetwork = wallet.isConnected && !wallet.isDemo && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
+  const isWrongNetwork = wallet.isConnected && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
 
   return (
     <header className="bg-[#090D16] border-b border-cyan-900/30 text-white px-6 py-4 flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 gap-4 md:gap-0">
@@ -64,10 +64,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Cambiar a Arbitrum Sepolia</span>
           </button>
-        ) : (
+        ) : wallet.isConnected ? (
           <div className="flex items-center gap-2 bg-[#121927] border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Arbitrum Sepolia</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-[#121927] border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-500">
+            <div className="w-2 h-2 rounded-full bg-slate-600" />
+            <span>Sin conexion</span>
           </div>
         )}
 
@@ -77,24 +82,31 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               onClick={() => setShowDropdown(!showDropdown)}
               className="flex items-center gap-2 bg-[#121927] hover:bg-[#1a2337] border border-cyan-500/30 px-3.5 py-1.5 rounded-lg text-xs font-mono text-cyan-300 transition-all"
             >
-              <div className={`w-2 h-2 rounded-full ${wallet.isDemo ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>{formatAddress(wallet.account)}</span>
-              {wallet.isDemo && <span className="text-[10px] text-cyan-400/80 bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-800/40">DEMO</span>}
               <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
             </button>
           ) : (
-            <button
-              onClick={connectWallet}
-              disabled={wallet.isConnecting}
-              className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
-            >
-              {wallet.isConnecting ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Wallet className="w-3.5 h-3.5" />
+            <div className="flex flex-col items-end gap-1.5">
+              <button
+                onClick={connectWallet}
+                disabled={wallet.isConnecting}
+                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
+              >
+                {wallet.isConnecting ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Wallet className="w-3.5 h-3.5" />
+                )}
+                <span>{wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}</span>
+              </button>
+              {wallet.error && (
+                <div className="absolute top-full right-0 mt-2 w-72 bg-rose-950/90 border border-rose-700/60 rounded-lg p-2.5 text-[11px] text-rose-300 flex items-start gap-2 shadow-xl z-50 backdrop-blur-sm">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-rose-400" />
+                  <span>{wallet.error}</span>
+                </div>
               )}
-              <span>{wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}</span>
-            </button>
+            </div>
           )}
 
           {showDropdown && wallet.isConnected && (
@@ -102,11 +114,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               <div className="px-3 py-2 border-b border-slate-800">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] text-slate-400 font-mono uppercase">Direccion activa</p>
-                  {wallet.isDemo && (
-                    <span className="text-[9px] text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/50">
-                      Modo Demo
-                    </span>
-                  )}
                 </div>
                 <p className="text-xs text-white font-mono truncate mt-0.5">{wallet.account}</p>
                 {wallet.balance && (

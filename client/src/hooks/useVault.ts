@@ -8,45 +8,20 @@ export const CONVERSION_RATE = 1.0087; // 1 aaUSDC = 1.0087 USDC
 export const useVault = () => {
   const { wallet } = useWeb3();
   const [metrics, setMetrics] = useState<VaultMetrics>({
-    totalAssets: '125446.51',
-    userShares: '16.3636',
-    userAssets: '16.51',
+    totalAssets: '0.00',
+    userShares: '0.0000',
+    userAssets: '0.00',
     performanceFee: 10,
     assetSymbol: 'USDC'
   });
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [history, setHistory] = useState<TransactionRecord[]>([
-    {
-      date: '28 May 2025, 14:32:18',
-      type: 'IA',
-      typeBadge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-      description: 'Senal generada: Mantener en Aave',
-      detail: 'Confianza: 90% - Riesgo: Bajo',
-      protocol: 'Aave V3',
-      amount: '-',
-      status: 'Completado',
-      hash: '0x8f3a...b7c9'
-    },
-    {
-      date: '27 May 2025, 09:18:07',
-      type: 'DEPÓSITO',
-      typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-      description: 'Deposito de USDC al vault',
-      detail: 'Convertido a aaUSDC',
-      protocol: 'Aave V3',
-      amount: '500.00 USDC',
-      subAmount: '495.6875 aaUSDC',
-      status: 'Completado',
-      hash: '0x9b6c...2e11'
-    }
-  ]);
+  const [history, setHistory] = useState<TransactionRecord[]>([]);
 
   const fetchMetrics = useCallback(async () => {
     try {
-      if (wallet.isConnected && !wallet.isDemo && wallet.account) {
+      if (wallet.isConnected && wallet.account) {
         const totalAssets = await Web3Service.getVaultTotalAssets();
         const userVaultData = await Web3Service.getUserShares(wallet.account);
         setMetrics((prev) => ({
@@ -56,10 +31,10 @@ export const useVault = () => {
           userAssets: userVaultData.assets
         }));
       }
-    } catch {
-      // Mantiene estado local exacto
+    } catch (err: any) {
+      console.error('Error fetching vault metrics:', err);
     }
-  }, [wallet.account, wallet.isConnected, wallet.isDemo]);
+  }, [wallet.account, wallet.isConnected]);
 
   useEffect(() => {
     fetchMetrics();
@@ -72,22 +47,21 @@ export const useVault = () => {
       return;
     }
 
+    if (!wallet.isConnected) {
+      setError('Por favor conecta tu wallet para realizar un deposito.');
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     setTxHash(null);
 
     try {
-      let hash = '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      if (wallet.isConnected && !wallet.isDemo) {
-        hash = await Web3Service.deposit(amountStr);
-      } else {
-        await new Promise((res) => setTimeout(res, 1000));
-      }
-
+      const hash = await Web3Service.deposit(amountStr);
       const addedShares = numAmount / CONVERSION_RATE;
-      const currentUserAssets = parseFloat(metrics.userAssets);
-      const currentUserShares = parseFloat(metrics.userShares);
-      const currentTotalAssets = parseFloat(metrics.totalAssets);
+      const currentUserAssets = parseFloat(metrics.userAssets) || 0;
+      const currentUserShares = parseFloat(metrics.userShares) || 0;
+      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
 
       const newUserAssets = (currentUserAssets + numAmount).toFixed(2);
       const newUserShares = (currentUserShares + addedShares).toFixed(4);
@@ -111,7 +85,7 @@ export const useVault = () => {
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${addedShares.toFixed(4)} aaUSDC`,
         status: 'Completado',
-        hash: hash.substring(0, 6) + '...' + hash.substring(hash.length - 4)
+        hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);
@@ -129,7 +103,12 @@ export const useVault = () => {
       return;
     }
 
-    const currentUserAssets = parseFloat(metrics.userAssets);
+    if (!wallet.isConnected) {
+      setError('Por favor conecta tu wallet para realizar un retiro.');
+      return;
+    }
+
+    const currentUserAssets = parseFloat(metrics.userAssets) || 0;
     if (numAmount > currentUserAssets) {
       setError(`Monto supera tu posicion disponible de $${metrics.userAssets} USDC.`);
       return;
@@ -140,16 +119,10 @@ export const useVault = () => {
     setTxHash(null);
 
     try {
-      let hash = '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      if (wallet.isConnected && !wallet.isDemo) {
-        hash = await Web3Service.withdraw(amountStr);
-      } else {
-        await new Promise((res) => setTimeout(res, 1000));
-      }
-
+      const hash = await Web3Service.withdraw(amountStr);
       const removedShares = numAmount / CONVERSION_RATE;
-      const currentUserShares = parseFloat(metrics.userShares);
-      const currentTotalAssets = parseFloat(metrics.totalAssets);
+      const currentUserShares = parseFloat(metrics.userShares) || 0;
+      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
 
       const newUserAssets = Math.max(0, currentUserAssets - numAmount).toFixed(2);
       const newUserShares = Math.max(0, currentUserShares - removedShares).toFixed(4);
@@ -173,7 +146,7 @@ export const useVault = () => {
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${removedShares.toFixed(4)} aaUSDC`,
         status: 'Completado',
-        hash: hash.substring(0, 6) + '...' + hash.substring(hash.length - 4)
+        hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);

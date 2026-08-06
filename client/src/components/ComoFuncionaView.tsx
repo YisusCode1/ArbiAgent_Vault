@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Brain, Compass, Box, TrendingUp, ShieldCheck, Eye, Zap, Bot, ExternalLink } from 'lucide-react';
+import { Database, Brain, Compass, Box, TrendingUp, ShieldCheck, Eye, Zap, Bot } from 'lucide-react';
 
 export const ComoFuncionaView: React.FC = () => {
   const steps = [
@@ -103,16 +103,6 @@ export const ComoFuncionaView: React.FC = () => {
             </div>
           );
         })}
-      </div>
-
-      <div className="bg-[#070B14] border border-slate-800 rounded-lg p-3 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-cyan-400" />
-          <span><strong className="text-slate-200">MODO DEMO:</strong> Arquitectura impulsada por agentes inteligentes en Arbitrum.</span>
-        </div>
-        <a href="#info" className="text-cyan-400 hover:underline flex items-center gap-1">
-          Mas informacion <ExternalLink className="w-3 h-3" />
-        </a>
       </div>
     </div>
   );

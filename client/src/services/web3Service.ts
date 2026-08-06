@@ -9,6 +9,7 @@ import {
   VAULT_ABI,
   ERC20_ABI
 } from '../config/constants';
+import { RebalanceSignalResponse, TransactionRecord } from '../types';
 
 declare global {
   interface Window {
@@ -22,38 +23,30 @@ export class Web3Service {
   }
 
   public static async connectWallet(): Promise<{ account: string; chainId: number; balance: string; isDemo: boolean }> {
-    if (this.hasMetaMask()) {
-      try {
-        const ethereum = window.ethereum;
-        const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
-
-        if (accounts && accounts.length > 0) {
-          const account = accounts[0];
-          const chainIdHex: string = await ethereum.request({ method: 'eth_chainId' });
-          const chainId = parseInt(chainIdHex, 16);
-
-          const provider = new ethers.BrowserProvider(ethereum);
-          const rawBalance = await provider.getBalance(account);
-          const balance = ethers.formatEther(rawBalance);
-
-          return { account, chainId, balance, isDemo: false };
-        }
-      } catch (err: any) {
-        // Fallback a modo demo si el usuario rechaza la conexion
-      }
+    if (!this.hasMetaMask()) {
+      throw new Error('MetaMask no está instalado en tu navegador.');
     }
 
-    // Modo Demo automatico si no hay MetaMask o se rechaza la sesion
-    return {
-      account: '0x7Acb8291045c4819d92e59104f68',
-      chainId: ARBITRUM_SEPOLIA_CHAIN_ID,
-      balance: '1.2500',
-      isDemo: true
-    };
+    const ethereum = window.ethereum;
+    const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
+
+    if (!accounts || accounts.length === 0) {
+      throw new Error('No se seleccionó ninguna cuenta en MetaMask.');
+    }
+
+    const account = accounts[0];
+    const chainIdHex: string = await ethereum.request({ method: 'eth_chainId' });
+    const chainId = parseInt(chainIdHex, 16);
+
+    const provider = new ethers.BrowserProvider(ethereum);
+    const rawBalance = await provider.getBalance(account);
+    const balance = ethers.formatEther(rawBalance);
+
+    return { account, chainId, balance, isDemo: false };
   }
 
   public static async switchToArbitrumSepolia(): Promise<boolean> {
-    if (!this.hasMetaMask()) return true;
+    if (!this.hasMetaMask()) return false;
     const ethereum = window.ethereum;
     try {
       await ethereum.request({
@@ -77,77 +70,90 @@ export class Web3Service {
         });
         return true;
       }
-      return false;
+      throw switchError;
     }
   }
 
   public static async deposit(amountUsdc: string): Promise<string> {
-    if (this.hasMetaMask()) {
-      try {
-        const ethereum = window.ethereum;
-        const provider = new ethers.BrowserProvider(ethereum);
-        const signer = await provider.getSigner();
-        const parsedAmount = ethers.parseUnits(amountUsdc, 6);
-
-        const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, signer);
-        const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
-
-        const allowance = await usdcContract.allowance(await signer.getAddress(), VAULT_CONTRACT_ADDRESS);
-
-        if (allowance < parsedAmount) {
-          const approveTx = await usdcContract.approve(VAULT_CONTRACT_ADDRESS, parsedAmount);
-          await approveTx.wait();
-        }
-
-        const depositTx = await vaultContract.deposit(parsedAmount, await signer.getAddress());
-        const receipt = await depositTx.wait();
-        return receipt.hash;
-      } catch {
-        // Fallback a hash simulado
-      }
+    if (!this.hasMetaMask()) {
+      throw new Error('MetaMask es requerido para depositar.');
     }
 
-    await new Promise((res) => setTimeout(res, 1200));
-    return '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const ethereum = window.ethereum;
+    const provider = new ethers.BrowserProvider(ethereum);
+    const signer = await provider.getSigner();
+    const parsedAmount = ethers.parseUnits(amountUsdc, 6);
+
+    const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, signer);
+    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+
+    const allowance = await usdcContract.allowance(await signer.getAddress(), VAULT_CONTRACT_ADDRESS);
+
+    if (allowance < parsedAmount) {
+      const approveTx = await usdcContract.approve(VAULT_CONTRACT_ADDRESS, parsedAmount);
+      await approveTx.wait();
+    }
+
+    const depositTx = await vaultContract.deposit(parsedAmount, await signer.getAddress());
+    const receipt = await depositTx.wait();
+    return receipt.hash;
   }
 
   public static async withdraw(amountUsdc: string): Promise<string> {
-    if (this.hasMetaMask()) {
-      try {
-        const ethereum = window.ethereum;
-        const provider = new ethers.BrowserProvider(ethereum);
-        const signer = await provider.getSigner();
-        const userAddress = await signer.getAddress();
-        const parsedAmount = ethers.parseUnits(amountUsdc, 6);
-
-        const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
-        const withdrawTx = await vaultContract.withdraw(parsedAmount, userAddress, userAddress);
-        const receipt = await withdrawTx.wait();
-        return receipt.hash;
-      } catch {
-        // Fallback a hash simulado
-      }
+    if (!this.hasMetaMask()) {
+      throw new Error('MetaMask es requerido para retirar.');
     }
 
-    await new Promise((res) => setTimeout(res, 1200));
-    return '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const ethereum = window.ethereum;
+    const provider = new ethers.BrowserProvider(ethereum);
+    const signer = await provider.getSigner();
+    const userAddress = await signer.getAddress();
+    const parsedAmount = ethers.parseUnits(amountUsdc, 6);
+
+    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+    const withdrawTx = await vaultContract.withdraw(parsedAmount, userAddress, userAddress);
+    const receipt = await withdrawTx.wait();
+    return receipt.hash;
+  }
+
+  public static async executeSignalOnChain(signalPayload: RebalanceSignalResponse): Promise<string> {
+    if (!this.hasMetaMask()) {
+      throw new Error('MetaMask es requerido para ejecutar rebalanceo on-chain.');
+    }
+
+    const ethereum = window.ethereum;
+    const provider = new ethers.BrowserProvider(ethereum);
+    const signer = await provider.getSigner();
+
+    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+    const tx = await vaultContract.executeSignal(
+      signalPayload.amountToSupply,
+      signalPayload.amountToWithdraw,
+      signalPayload.profitGenerated,
+      signalPayload.nonce,
+      signalPayload.deadline,
+      signalPayload.signature
+    );
+
+    const receipt = await tx.wait();
+    return receipt.hash;
   }
 
   public static async getVaultTotalAssets(): Promise<string> {
     try {
-      const ethereum = window.ethereum;
+      const ethereum = this.hasMetaMask() ? window.ethereum : null;
       const provider = ethereum ? new ethers.BrowserProvider(ethereum) : new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
       const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
       const total = await vaultContract.totalAssets();
       return ethers.formatUnits(total, 6);
     } catch {
-      return '125446.51';
+      return '0.00';
     }
   }
 
   public static async getUserShares(account: string): Promise<{ shares: string; assets: string }> {
     try {
-      if (this.hasMetaMask()) {
+      if (this.hasMetaMask() && account) {
         const ethereum = window.ethereum;
         const provider = new ethers.BrowserProvider(ethereum);
         const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
@@ -160,9 +166,36 @@ export class Web3Service {
           assets: ethers.formatUnits(assets, 6)
         };
       }
-    } catch {
-      // Mantiene valores simulados
+    } catch (err) {
+      console.error('Error fetching user shares:', err);
     }
-    return { shares: '16.3636', assets: '16.51' };
+    return { shares: '0.0000', assets: '0.00' };
+  }
+
+  public static async fetchOnChainEvents(): Promise<TransactionRecord[]> {
+    try {
+      const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+
+      const filter = vaultContract.filters.SignalExecuted();
+      const events = await vaultContract.queryFilter(filter, -5000);
+
+      if (events && events.length > 0) {
+        return events.map((ev: any) => ({
+          date: new Date().toLocaleString('es-ES'),
+          type: 'IA',
+          typeBadge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+          description: 'Ejecución de Señal EIP-712',
+          detail: `Rebalanceo on-chain confirmado`,
+          protocol: 'Aave V3',
+          amount: `${ethers.formatUnits(ev.args[0], 6)} USDC`,
+          status: 'Completado (On-Chain)',
+          hash: ev.transactionHash ? `${ev.transactionHash.substring(0, 6)}...${ev.transactionHash.substring(ev.transactionHash.length - 4)}` : '-'
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching on-chain events:', err);
+    }
+    return [];
   }
 }

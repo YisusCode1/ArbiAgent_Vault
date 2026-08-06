@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { TrendingUp, Layers, Info, ExternalLink, RefreshCw, AlertTriangle, CheckCircle, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, Layers, Info, RefreshCw, AlertTriangle, CheckCircle, ArrowUpRight, Wallet } from 'lucide-react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useVault, CONVERSION_RATE } from '../hooks/useVault';
 import { ARBITRUM_SEPOLIA_EXPLORER } from '../config/constants';
 
 export const VaultView: React.FC = () => {
-  const { wallet } = useWeb3();
+  const { wallet, connectWallet } = useWeb3();
   const { metrics, isProcessing, txHash, error, deposit, withdraw } = useVault();
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState<string>('');
@@ -33,9 +33,8 @@ export const VaultView: React.FC = () => {
     }
   };
 
-  // Calculos matematicos exactos
   const userAssetsNum = parseFloat(metrics.userAssets) || 0;
-  const totalAssetsNum = parseFloat(metrics.totalAssets) || 125446.51;
+  const totalAssetsNum = parseFloat(metrics.totalAssets) || 0;
   const userSharesNum = parseFloat(metrics.userShares) || 0;
 
   const sharePercentage = totalAssetsNum > 0 ? (userAssetsNum / totalAssetsNum) * 100 : 0;
@@ -44,7 +43,6 @@ export const VaultView: React.FC = () => {
 
   const generatedProfit = (userSharesNum * (CONVERSION_RATE - 1.0)).toFixed(2);
 
-  // Fechas y puntos de curva segun periodo seleccionado
   const timeframeData: Record<string, { dates: string[]; path: string; endY: number }> = {
     '1D': {
       dates: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'],
@@ -86,7 +84,7 @@ export const VaultView: React.FC = () => {
             </div>
             <div className="text-2xl font-bold text-cyan-400">8.03%</div>
             <div className="text-xs text-emerald-400 flex items-center gap-1">
-              <span>+3.23% vs. ciclo anterior (4.80%)</span>
+              <span>Rendimiento Aave V3</span>
             </div>
           </div>
           <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400">
@@ -310,35 +308,37 @@ export const VaultView: React.FC = () => {
           </div>
 
           <div className="mt-6">
-            <button
-              onClick={handleAction}
-              disabled={isProcessing || !amount || parseFloat(amount) <= 0}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isProcessing && <RefreshCw className="w-4 h-4 animate-spin" />}
-              <span>
-                {isProcessing
-                  ? 'Procesando transaccion...'
-                  : action === 'deposit'
-                  ? 'Depositar USDC'
-                  : 'Retirar USDC'}
-              </span>
-            </button>
-            <p className="text-[11px] text-slate-500 text-center mt-2">
-              Modo Arbitrum Sepolia Testnet. Operaciones {wallet.isDemo ? 'demostrativas (Wallet Simulada)' : 'en red de pruebas'}.
-            </p>
+            {!wallet.isConnected ? (
+              <button
+                onClick={connectWallet}
+                disabled={wallet.isConnecting}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {wallet.isConnecting ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wallet className="w-4 h-4" />
+                )}
+                <span>{wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet para operar'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleAction}
+                disabled={isProcessing || !amount || parseFloat(amount) <= 0}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isProcessing && <RefreshCw className="w-4 h-4 animate-spin" />}
+                <span>
+                  {isProcessing
+                    ? 'Procesando transaccion...'
+                    : action === 'deposit'
+                    ? 'Depositar USDC'
+                    : 'Retirar USDC'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
-      </div>
-
-      <div className="bg-[#070B14] border border-slate-800 rounded-lg p-3 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-cyan-400" />
-          <span><strong className="text-slate-200">MODO DEMO:</strong> Esta aplicacion utiliza datos simulados y contratos de prueba en Arbitrum Sepolia.</span>
-        </div>
-        <a href="#info" className="text-cyan-400 hover:underline flex items-center gap-1">
-          Mas informacion <ExternalLink className="w-3 h-3" />
-        </a>
       </div>
     </div>
   );

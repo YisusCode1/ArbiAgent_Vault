@@ -1,13 +1,207 @@
 import React from 'react';
-import { Info, Zap, Shield, ExternalLink, RefreshCw, CheckCircle, Award } from 'lucide-react';
+import { Info, Zap, Shield, Scale, Flame, ExternalLink, RefreshCw, CheckCircle, Award, Check } from 'lucide-react';
 import { useStrategy } from '../hooks/useStrategy';
 import { ARBITRUM_SEPOLIA_EXPLORER } from '../config/constants';
+import { RiskMode, RiskModeInfo } from '../types';
 
 export const EstrategiaIAView: React.FC = () => {
-  const { strategy, isLoading, isExecuting, executionResult, executeStrategy, fetchStrategy } = useStrategy();
+  const {
+    riskMode,
+    setRiskMode,
+    riskModes,
+    strategy,
+    isLoading,
+    isExecuting,
+    executionResult,
+    executeStrategy,
+    fetchStrategy,
+    fetchError
+  } = useStrategy();
+
+  const defaultModes: RiskModeInfo[] = [
+    {
+      id: 'conservador',
+      name: 'Conservador',
+      description: 'Preserva capital, minima volatilidad y baja exposicion.',
+      max_exposure: 0.60,
+      risk_level: 'Bajo',
+      color: 'emerald',
+      cooldown_hours: 24
+    },
+    {
+      id: 'moderado',
+      name: 'Moderado',
+      description: 'Balance optimo entre rendimiento y riesgo (ratio Sharpe).',
+      max_exposure: 0.80,
+      risk_level: 'Medio',
+      color: 'cyan',
+      cooldown_hours: 8
+    },
+    {
+      id: 'agresivo',
+      name: 'Agresivo',
+      description: 'Maximo rendimiento buscando capturar todo el yield disponible.',
+      max_exposure: 0.95,
+      risk_level: 'Alto',
+      color: 'amber',
+      cooldown_hours: 2
+    }
+  ];
+
+  const modesToRender = riskModes.length > 0 ? riskModes : defaultModes;
+  const currentModeInfo = modesToRender.find((m) => m.id === riskMode) || defaultModes[1];
+
+  const getModeIcon = (modeId: RiskMode) => {
+    switch (modeId) {
+      case 'conservador':
+        return <Shield className="w-5 h-5 text-emerald-400" />;
+      case 'agresivo':
+        return <Flame className="w-5 h-5 text-amber-400" />;
+      case 'moderado':
+      default:
+        return <Scale className="w-5 h-5 text-cyan-400" />;
+    }
+  };
+
+  const getCardStyle = (modeId: RiskMode, isSelected: boolean) => {
+    if (isSelected) {
+      switch (modeId) {
+        case 'conservador':
+          return 'bg-emerald-950/30 border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50';
+        case 'agresivo':
+          return 'bg-amber-950/30 border-amber-500/60 shadow-[0_0_20px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/50';
+        case 'moderado':
+        default:
+          return 'bg-cyan-950/30 border-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/50';
+      }
+    }
+    return 'bg-[#0D1424] border-slate-800 hover:border-slate-700 opacity-80 hover:opacity-100';
+  };
+
+  const getBadgeStyle = (modeId: RiskMode) => {
+    switch (modeId) {
+      case 'conservador':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'agresivo':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+      case 'moderado':
+      default:
+        return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
+    }
+  };
+
+  const getProgressBarColor = (modeId: RiskMode) => {
+    switch (modeId) {
+      case 'conservador':
+        return 'bg-emerald-400';
+      case 'agresivo':
+        return 'bg-amber-400';
+      case 'moderado':
+      default:
+        return 'bg-cyan-400';
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 text-white font-sans">
+      
+      {/* ALERTA DE ERROR CRITICO DE NODO/API */}
+      {fetchError && (
+        <div className="bg-red-950/40 border border-red-500/50 rounded-xl p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-bold text-red-400">Alerta de Sistema</h3>
+            <p className="text-sm text-red-200/80 mt-1">{fetchError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* SECCION DE SELECCION DE MODO DE RIESGO */}
+      <div className="bg-[#0D1424] border border-cyan-900/20 rounded-xl p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">CONFIGURACION DEL AGENTE IA</span>
+            <h2 className="text-2xl font-bold text-white mt-0.5">Modo de Operacion de IA</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Selecciona el perfil de riesgo con el que trabajara el agente para optimizar la boveda.
+            </p>
+          </div>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-xs text-cyan-400 bg-cyan-950/40 px-3 py-1.5 rounded-lg border border-cyan-800/40 animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>IA Reevaluando estrategia...</span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {modesToRender.map((modeItem) => {
+            const isSelected = riskMode === modeItem.id;
+            return (
+              <div
+                key={modeItem.id}
+                onClick={() => setRiskMode(modeItem.id as RiskMode)}
+                className={`cursor-pointer rounded-xl p-5 border transition-all duration-300 relative flex flex-col justify-between ${getCardStyle(
+                  modeItem.id as RiskMode,
+                  isSelected
+                )}`}
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/50">
+                        {getModeIcon(modeItem.id as RiskMode)}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-white leading-tight">{modeItem.name}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getBadgeStyle(modeItem.id as RiskMode)}`}>
+                          Riesgo {modeItem.risk_level}
+                        </span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-cyan-500 text-black flex items-center justify-center font-bold">
+                        <Check className="w-4 h-4 stroke-[3]" />
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed my-3">{modeItem.description}</p>
+                </div>
+
+                <div className="space-y-3 pt-3 border-t border-slate-800/60">
+                  <div>
+                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                      <span>Exposicion maxima</span>
+                      <span className="font-bold text-slate-200">{Math.round(modeItem.max_exposure * 100)}% TVL</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${getProgressBarColor(modeItem.id as RiskMode)} transition-all duration-500`}
+                        style={{ width: `${modeItem.max_exposure * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Cooldown de rebalanceo</span>
+                    <span className="font-mono text-slate-300">{modeItem.cooldown_hours}h</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 p-3 bg-[#070B14] border border-slate-800 rounded-lg flex items-center gap-3 text-xs text-slate-400">
+          <Info className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+          <span>
+            Modo activo: <strong className="text-white capitalize">{currentModeInfo.name}</strong>. {currentModeInfo.description}
+          </span>
+        </div>
+      </div>
+
+      {/* DASHBOARD PRINCIPAL DE ESTRATEGIA */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[#0D1424] border border-cyan-900/20 rounded-xl p-6 relative">
           <div className="flex justify-between items-center mb-6">
@@ -55,7 +249,6 @@ export const EstrategiaIAView: React.FC = () => {
                 </div>
                 <div className="text-right ml-4">
                   <div className="font-bold text-cyan-400 text-sm">100%</div>
-                  <div className="text-xs text-slate-400">$125,446.51</div>
                 </div>
               </div>
 
@@ -87,15 +280,20 @@ export const EstrategiaIAView: React.FC = () => {
                 AI
               </div>
               <div>
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">ULTIMA RECOMENDACION</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">ULTIMA RECOMENDACION DE IA</span>
                 <h3 className="text-xl font-bold text-white">
-                  {strategy.action === 'HOLD' ? 'Mantener posicion en Aave' : 'Rebalancear a nuevo protocolo'}
+                  {strategy.action === 'HOLD'
+                    ? 'Mantener posicion en Aave'
+                    : strategy.action === 'SUPPLY'
+                    ? 'Incrementar suministro en Aave V3'
+                    : 'Retirar parte del capital a Reserva'}
                 </h3>
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-6">
-              Las condiciones evaluadas por el modelo de Inteligencia Artificial sugieren mantener la exposicion en {strategy.recommended_protocol}. Estrategia estable con bajo riesgo y rendimiento consistente.
+              {strategy.mode_description || currentModeInfo.description} Evaluacion generada por el agente IA para el perfil{' '}
+              <strong className="text-cyan-400 capitalize">{strategy.active_mode || riskMode}</strong>.
             </p>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -184,16 +382,6 @@ export const EstrategiaIAView: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="bg-[#070B14] border border-slate-800 rounded-lg p-3 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-cyan-400" />
-          <span><strong className="text-slate-200">MODO DEMO:</strong> Esta aplicacion utiliza modelos predictivos y firmas EIP-712 en Arbitrum Sepolia.</span>
-        </div>
-        <a href="#info" className="text-cyan-400 hover:underline flex items-center gap-1">
-          Mas informacion <ExternalLink className="w-3 h-3" />
-        </a>
       </div>
     </div>
   );

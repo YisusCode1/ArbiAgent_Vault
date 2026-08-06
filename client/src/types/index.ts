@@ -1,3 +1,15 @@
+export type RiskMode = 'conservador' | 'moderado' | 'agresivo';
+
+export interface RiskModeInfo {
+  id: RiskMode;
+  name: string;
+  description: string;
+  max_exposure: number;
+  risk_level: string;
+  color: string;
+  cooldown_hours: number;
+}
+
 export interface WalletState {
   account: string | null;
   chainId: number | null;
@@ -17,6 +29,23 @@ export interface StrategyResponse {
   recommended_protocol: string;
   timestamp: string;
   startbase_score: number;
+  active_mode?: string;
+  mode_description?: string;
+}
+
+export interface RebalanceSignalResponse {
+  success: boolean;
+  txHash: string;
+  message: string;
+  timestamp: string;
+  amountToSupply: number;
+  amountToWithdraw: number;
+  profitGenerated: number;
+  nonce: number;
+  deadline: number;
+  signature: string;
+  target_allocation?: number;
+  confidence?: number;
 }
 
 export interface VaultMetrics {
