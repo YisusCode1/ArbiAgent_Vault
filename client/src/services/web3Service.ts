@@ -247,4 +247,84 @@ export class Web3Service {
     }
     return [];
   }
+
+  public static async fetchUserActivityFromArbiscan(account: string): Promise<TransactionRecord[]> {
+    try {
+      const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+
+      const depositFilter = vaultContract.filters.Deposit(null, account);
+      const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
+
+      const [deposits, withdrawals] = await Promise.all([
+        vaultContract.queryFilter(depositFilter, -100000),
+        vaultContract.queryFilter(withdrawFilter, -100000)
+      ]);
+
+      const records: TransactionRecord[] = [];
+      const blocksToFetch = new Set<number>();
+
+      const processLog = (log: any, type: 'DEPÓSITO' | 'RETIRO') => {
+        blocksToFetch.add(log.blockNumber);
+        
+        let amountUsdc, amountShares, description, detail, typeBadge;
+        
+        if (type === 'DEPÓSITO') {
+          amountUsdc = ethers.formatUnits(log.args[2], 6);
+          amountShares = ethers.formatUnits(log.args[3], 6);
+          description = 'Deposito de USDC al vault';
+          detail = `Recibidas ~${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
+          typeBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        } else {
+          amountUsdc = ethers.formatUnits(log.args[3], 6);
+          amountShares = ethers.formatUnits(log.args[4], 6);
+          description = 'Retiro de USDC del vault';
+          detail = `Quemadas ${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
+          typeBadge = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+        }
+
+        records.push({
+          date: 'Cargando...', 
+          type,
+          typeBadge,
+          description,
+          detail,
+          protocol: 'Aave V3',
+          amount: `${parseFloat(amountUsdc).toFixed(2)} USDC`,
+          subAmount: type === 'DEPÓSITO' ? `~${parseFloat(amountShares).toFixed(4)} aaUSDC` : `${parseFloat(amountShares).toFixed(4)} aaUSDC`,
+          status: 'Completado',
+          hash: `${log.transactionHash.substring(0, 6)}...${log.transactionHash.substring(log.transactionHash.length - 4)}`,
+          timestampMs: log.blockNumber // Usaremos el blockNumber temporalmente para guardar su referencia
+        });
+      };
+
+      deposits.forEach(d => processLog(d, 'DEPÓSITO'));
+      withdrawals.forEach(w => processLog(w, 'RETIRO'));
+
+      // Fetch timestamps
+      const blockPromises = Array.from(blocksToFetch).map(b => provider.getBlock(b));
+      const blocks = await Promise.all(blockPromises);
+      const blockMap = new Map();
+      blocks.forEach(b => {
+        if (b) blockMap.set(b.number, b.timestamp * 1000);
+      });
+
+      // Update timestamps and dates
+      records.forEach(r => {
+        if (r.timestampMs && blockMap.has(r.timestampMs)) {
+          const ts = blockMap.get(r.timestampMs);
+          r.timestampMs = ts;
+          r.date = new Date(ts).toLocaleString('es-ES');
+        } else {
+          r.date = new Date().toLocaleString('es-ES');
+        }
+      });
+
+      records.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+      return records;
+    } catch (err) {
+      console.error('Error fetching on-chain activity:', err);
+      return [];
+    }
+  }
 }

@@ -69,4 +69,5 @@ export interface TransactionRecord {
   amountColor?: string;
   status: string;
   hash: string;
+  timestampMs?: number;
 }

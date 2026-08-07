@@ -47,8 +47,6 @@ export const ActividadView: React.FC = () => {
     if (filter === 'Todos') return true;
     if (filter === 'Depositos') return item.type === 'DEPÓSITO';
     if (filter === 'Retiros') return item.type === 'RETIRO';
-    if (filter === 'Estrategia IA') return item.type === 'IA' || item.type === 'EJECUCIÓN';
-    if (filter === 'Sistema') return item.type === 'SISTEMA' || item.type === 'RENDIMIENTO';
     return true;
   });
 
@@ -81,7 +79,7 @@ export const ActividadView: React.FC = () => {
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#0D1424] border border-cyan-900/20 p-4 rounded-xl">
         <div className="flex gap-2 w-full sm:w-auto overflow-x-auto">
-          {['Todos', 'Depositos', 'Retiros', 'Estrategia IA', 'Sistema'].map((f) => (
+          {['Todos', 'Depositos', 'Retiros'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}

@@ -129,10 +129,10 @@ class GeminiAgent:
                         f"Clave #{self.current_key_index + 1}, intento {retry + 1}/{retries_per_key + 1}: {error_str}"
                     )
 
-                    # --- DETECCIÓN DE CUOTA AGOTADA (429) ---
-                    if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str.upper():
+                    # --- DETECCIÓN DE CUOTA AGOTADA O PERMISOS DENEGADOS (429, 403, 404) ---
+                    if any(code in error_str for code in ["429", "403", "404"]) or "RESOURCE_EXHAUSTED" in error_str.upper():
                         logger.warning(
-                            f"⚠️ Cuota agotada en clave #{self.current_key_index + 1}. "
+                            f"⚠️ Cuota/Modelo no disponible en clave #{self.current_key_index + 1}. "
                             f"Intentando rotación ({key_attempt + 1}/{max_attempts})..."
                         )
                         # No reintentar con la misma clave, saltar al siguiente key_attempt
@@ -146,17 +146,17 @@ class GeminiAgent:
                         await asyncio.sleep(wait_time)
                     else:
                         # Agotamos reintentos con esta clave por error no-429
-                        logger.error(f"Agotados reintentos para clave #{self.current_key_index + 1} (error no-429)")
-                        return None
+                        logger.error(f"Agotados reintentos para clave #{self.current_key_index + 1}. Intentando rotación...")
+                        break
 
-            # Si llegamos aquí, la clave actual falló por 429. Intentar rotar.
+            # Si llegamos aquí, la clave actual falló. Intentar rotar.
             if key_attempt < max_attempts - 1:
                 if not self._rotate_key():
                     logger.error("No se pudo rotar a la siguiente clave.")
                     break
             else:
                 logger.error(
-                    f"🚨 Todas las {max_attempts} claves API de la pool están bloqueadas (429). "
+                    f"🚨 Todas las {max_attempts} claves API de la pool fallaron. "
                     "Activando fallback HOLD."
                 )
 

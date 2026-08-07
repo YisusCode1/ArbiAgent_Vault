@@ -34,6 +34,11 @@ export const useVault = () => {
           userAssets: userVaultData.assets,
           userPrincipal
         }));
+
+        const userHistory = await Web3Service.fetchUserActivityFromArbiscan(wallet.account);
+        setHistory(userHistory);
+      } else {
+        setHistory([]);
       }
     } catch (err: any) {
       console.error('Error fetching vault metrics:', err);
@@ -64,8 +69,8 @@ export const useVault = () => {
       const hash = await Web3Service.deposit(amountStr);
       setTxHash(hash);
       
-      // Obtener datos reales de la blockchain
-      await fetchMetrics();
+      // Obtener datos reales de la blockchain, lo cual actualizará history con la info de Arbiscan
+      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
       
       const addedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
@@ -73,11 +78,11 @@ export const useVault = () => {
         type: 'DEPÓSITO',
         typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
         description: 'Deposito de USDC al vault',
-        detail: `Recibidas ~${addedShares.toFixed(4)} aaUSDC shares`,
+        detail: `Transacción enviada, esperando confirmación...`,
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `~${addedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        status: 'Pendiente',
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
@@ -116,7 +121,7 @@ export const useVault = () => {
       setTxHash(hash);
       
       // Obtener datos reales de la blockchain
-      await fetchMetrics();
+      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
 
       const removedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
@@ -124,11 +129,11 @@ export const useVault = () => {
         type: 'RETIRO',
         typeBadge: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
         description: 'Retiro de USDC del vault',
-        detail: `Quemadas ${removedShares.toFixed(4)} aaUSDC shares`,
+        detail: `Transacción enviada, esperando confirmación...`,
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${removedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        status: 'Pendiente',
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 

@@ -15,7 +15,7 @@ def test_agent_fallback_recommendation():
             current_allocation=0.80
         )
         
-        with patch.object(agent, '_call_gemini_with_retry', new_callable=AsyncMock) as mock_gemini:
+        with patch.object(agent, '_call_gemini_with_rotation', new_callable=AsyncMock) as mock_gemini:
             mock_gemini.return_value = None  # Simula fallo en Gemini
             rec = await agent.get_strategy("conservador", market_data)
             assert isinstance(rec, StrategyRecommendation)
@@ -44,7 +44,7 @@ def test_agent_valid_response():
             "startbase_score": 90.0
         }
 
-        with patch.object(agent, '_call_gemini_with_retry', new_callable=AsyncMock) as mock_gemini:
+        with patch.object(agent, '_call_gemini_with_rotation', new_callable=AsyncMock) as mock_gemini:
             mock_gemini.return_value = valid_json
             rec = await agent.get_strategy("agresivo", market_data)
             assert rec.action == "SUPPLY"
