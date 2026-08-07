@@ -57,7 +57,9 @@ def read_root():
 def get_health():
     return {
         "status": "ok",
-        "gemini_configured": bool(settings.GEMINI_API_KEY),
+        "gemini_configured": bool(settings.GEMINI_API_KEYS),
+        "gemini_keys_pool_size": len(settings.GEMINI_API_KEYS),
+        "gemini_active_key_index": agent.current_key_index + 1 if agent.api_keys else 0,
         "model": settings.GEMINI_MODEL,
         "ai_agent_address": settings.AI_AGENT_ADDRESS,
         "timestamp": datetime.datetime.utcnow().isoformat()

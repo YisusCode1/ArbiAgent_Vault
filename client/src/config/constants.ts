@@ -3,7 +3,7 @@ export const ARBITRUM_SEPOLIA_HEX_CHAIN_ID = '0x66eee';
 export const ARBITRUM_SEPOLIA_RPC = 'https://sepolia-rollup.arbitrum.io/rpc';
 export const ARBITRUM_SEPOLIA_EXPLORER = 'https://sepolia.arbiscan.io';
 
-export const VAULT_CONTRACT_ADDRESS = '0x8a731d082a895d940a02128a3a8174e92410aec1';
+export const VAULT_CONTRACT_ADDRESS = '0x9271faFfEa4e430352F9d6a585b712b0922102C3';
 export const USDC_CONTRACT_ADDRESS = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
 
 export const VAULT_ABI = [
@@ -16,7 +16,9 @@ export const VAULT_ABI = [
   'function convertToShares(uint256 assets) external view returns (uint256)',
   'function executeSignal(uint256 amountToSupply, uint256 amountToWithdraw, uint256 profitGenerated, uint256 nonce, uint256 deadline, bytes calldata signature) external',
   'event SignalExecuted(uint256 amountToSupply, uint256 amountToWithdraw, uint256 profitGenerated, uint256 nonce)',
-  'event FeeCollected(address indexed treasury, uint256 amount)'
+  'event FeeCollected(address indexed treasury, uint256 amount)',
+  'event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)',
+  'event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)'
 ];
 
 export const ERC20_ABI = [

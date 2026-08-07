@@ -52,6 +52,7 @@ export interface VaultMetrics {
   totalAssets: string;
   userShares: string;
   userAssets: string;
+  userPrincipal: string;
   performanceFee: number;
   assetSymbol: string;
 }

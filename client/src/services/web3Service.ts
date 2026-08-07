@@ -87,14 +87,20 @@ export class Web3Service {
     const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, signer);
     const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
 
+    const feeData = await provider.getFeeData();
+    const txOverrides = {
+      maxFeePerGas: feeData.maxFeePerGas ? (feeData.maxFeePerGas * 120n) / 100n : undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
+    };
+
     const allowance = await usdcContract.allowance(await signer.getAddress(), VAULT_CONTRACT_ADDRESS);
 
     if (allowance < parsedAmount) {
-      const approveTx = await usdcContract.approve(VAULT_CONTRACT_ADDRESS, parsedAmount);
+      const approveTx = await usdcContract.approve(VAULT_CONTRACT_ADDRESS, parsedAmount, txOverrides);
       await approveTx.wait();
     }
 
-    const depositTx = await vaultContract.deposit(parsedAmount, await signer.getAddress());
+    const depositTx = await vaultContract.deposit(parsedAmount, await signer.getAddress(), txOverrides);
     const receipt = await depositTx.wait();
     return receipt.hash;
   }
@@ -109,9 +115,15 @@ export class Web3Service {
     const signer = await provider.getSigner();
     const userAddress = await signer.getAddress();
     const parsedAmount = ethers.parseUnits(amountUsdc, 6);
+    
+    const feeData = await provider.getFeeData();
+    const txOverrides = {
+      maxFeePerGas: feeData.maxFeePerGas ? (feeData.maxFeePerGas * 120n) / 100n : undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
+    };
 
     const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
-    const withdrawTx = await vaultContract.withdraw(parsedAmount, userAddress, userAddress);
+    const withdrawTx = await vaultContract.withdraw(parsedAmount, userAddress, userAddress, txOverrides);
     const receipt = await withdrawTx.wait();
     return receipt.hash;
   }
@@ -124,6 +136,12 @@ export class Web3Service {
     const ethereum = window.ethereum;
     const provider = new ethers.BrowserProvider(ethereum);
     const signer = await provider.getSigner();
+    
+    const feeData = await provider.getFeeData();
+    const txOverrides = {
+      maxFeePerGas: feeData.maxFeePerGas ? (feeData.maxFeePerGas * 120n) / 100n : undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
+    };
 
     const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
     const tx = await vaultContract.executeSignal(
@@ -132,7 +150,8 @@ export class Web3Service {
       signalPayload.profitGenerated,
       signalPayload.nonce,
       signalPayload.deadline,
-      signalPayload.signature
+      signalPayload.signature,
+      txOverrides
     );
 
     const receipt = await tx.wait();
@@ -170,6 +189,36 @@ export class Web3Service {
       console.error('Error fetching user shares:', err);
     }
     return { shares: '0.0000', assets: '0.00' };
+  }
+
+  public static async getUserPrincipal(account: string): Promise<string> {
+    try {
+      const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+
+      const depositFilter = vaultContract.filters.Deposit(null, account);
+      const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
+
+      // Para Hackathon buscamos en los ultimos bloques
+      const deposits = await vaultContract.queryFilter(depositFilter, -100000);
+      const withdrawals = await vaultContract.queryFilter(withdrawFilter, -100000);
+
+      let totalDeposited = 0n;
+      for (const d of deposits) {
+        totalDeposited += (d as any).args[2];
+      }
+
+      let totalWithdrawn = 0n;
+      for (const w of withdrawals) {
+        totalWithdrawn += (w as any).args[3];
+      }
+
+      const principal = totalDeposited - totalWithdrawn;
+      return ethers.formatUnits(principal > 0n ? principal : 0n, 6);
+    } catch (err) {
+      console.error('Error fetching user principal:', err);
+      return '0.00';
+    }
   }
 
   public static async fetchOnChainEvents(): Promise<TransactionRecord[]> {

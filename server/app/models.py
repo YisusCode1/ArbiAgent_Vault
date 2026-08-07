@@ -44,7 +44,7 @@ class StrategyResponse(BaseModel):
     mode_description: str
 
 class RebalanceRequest(BaseModel):
-    vault_address: Optional[str] = "0x8a731d082a895d940a02128a3a8174e92410aec1"
+    vault_address: Optional[str] = None
     target_protocol: Optional[str] = "Aave V3"
     mode: Optional[str] = "moderado"
 

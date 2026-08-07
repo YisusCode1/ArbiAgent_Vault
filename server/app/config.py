@@ -15,14 +15,27 @@ if os.path.exists(env_path):
 
 class Settings:
     def __init__(self):
-        self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+        # Pool de API keys para rotación (separadas por comas en .env)
+        keys_env = os.getenv("GEMINI_API_KEYS", "")
+        self.GEMINI_API_KEYS = [k.strip() for k in keys_env.split(",") if k.strip()]
+
+        # Retrocompatibilidad: si no hay pool, usar la clave singular antigua
+        if not self.GEMINI_API_KEYS:
+            single_key = os.getenv("GEMINI_API_KEY", "")
+            if single_key:
+                self.GEMINI_API_KEYS = [single_key]
+
+        # Propiedad legacy para código que aún lea GEMINI_API_KEY
+        self.GEMINI_API_KEY = self.GEMINI_API_KEYS[0] if self.GEMINI_API_KEYS else ""
+
         self.GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self.GEMINI_TIMEOUT = int(os.getenv("GEMINI_TIMEOUT", "10"))
         self.GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "2"))
         self.CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "60"))
         self.AI_AGENT_ADDRESS = os.getenv("AI_AGENT_ADDRESS", "0x4039157EbC9143Def677Ac95cb3111eEaCd68dED")
         self.AI_AGENT_PRIVATE_KEY = os.getenv("AI_AGENT_PRIVATE_KEY", "80e21d9c9f0034cf8d0ccc2b23cbbf181bec12eb45c5e3cdaef488e50eebdd9f")
-        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "0x8a731d082a895d940a02128a3a8174e92410aec1")
+        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "0x9271faFfEa4e430352F9d6a585b712b0922102C3")
         self.CHAIN_ID = int(os.getenv("CHAIN_ID", "421614"))
 
 settings = Settings()
+

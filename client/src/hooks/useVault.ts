@@ -11,6 +11,7 @@ export const useVault = () => {
     totalAssets: '0.00',
     userShares: '0.0000',
     userAssets: '0.00',
+    userPrincipal: '0.00',
     performanceFee: 10,
     assetSymbol: 'USDC'
   });
@@ -24,11 +25,14 @@ export const useVault = () => {
       if (wallet.isConnected && wallet.account) {
         const totalAssets = await Web3Service.getVaultTotalAssets();
         const userVaultData = await Web3Service.getUserShares(wallet.account);
+        const userPrincipal = await Web3Service.getUserPrincipal(wallet.account);
+        
         setMetrics((prev) => ({
           ...prev,
           totalAssets,
           userShares: userVaultData.shares,
-          userAssets: userVaultData.assets
+          userAssets: userVaultData.assets,
+          userPrincipal
         }));
       }
     } catch (err: any) {
@@ -58,32 +62,21 @@ export const useVault = () => {
 
     try {
       const hash = await Web3Service.deposit(amountStr);
-      const addedShares = numAmount / CONVERSION_RATE;
-      const currentUserAssets = parseFloat(metrics.userAssets) || 0;
-      const currentUserShares = parseFloat(metrics.userShares) || 0;
-      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
-
-      const newUserAssets = (currentUserAssets + numAmount).toFixed(2);
-      const newUserShares = (currentUserShares + addedShares).toFixed(4);
-      const newTotalAssets = (currentTotalAssets + numAmount).toFixed(2);
-
-      setMetrics((prev) => ({
-        ...prev,
-        userAssets: newUserAssets,
-        userShares: newUserShares,
-        totalAssets: newTotalAssets
-      }));
-
       setTxHash(hash);
+      
+      // Obtener datos reales de la blockchain
+      await fetchMetrics();
+      
+      const addedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
         date: new Date().toLocaleString('es-ES'),
         type: 'DEPÓSITO',
         typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
         description: 'Deposito de USDC al vault',
-        detail: `Recibidas ${addedShares.toFixed(4)} aaUSDC shares`,
+        detail: `Recibidas ~${addedShares.toFixed(4)} aaUSDC shares`,
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
-        subAmount: `${addedShares.toFixed(4)} aaUSDC`,
+        subAmount: `~${addedShares.toFixed(4)} aaUSDC`,
         status: 'Completado',
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
@@ -120,22 +113,12 @@ export const useVault = () => {
 
     try {
       const hash = await Web3Service.withdraw(amountStr);
-      const removedShares = numAmount / CONVERSION_RATE;
-      const currentUserShares = parseFloat(metrics.userShares) || 0;
-      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
-
-      const newUserAssets = Math.max(0, currentUserAssets - numAmount).toFixed(2);
-      const newUserShares = Math.max(0, currentUserShares - removedShares).toFixed(4);
-      const newTotalAssets = Math.max(0, currentTotalAssets - numAmount).toFixed(2);
-
-      setMetrics((prev) => ({
-        ...prev,
-        userAssets: newUserAssets,
-        userShares: newUserShares,
-        totalAssets: newTotalAssets
-      }));
-
       setTxHash(hash);
+      
+      // Obtener datos reales de la blockchain
+      await fetchMetrics();
+
+      const removedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
         date: new Date().toLocaleString('es-ES'),
         type: 'RETIRO',
