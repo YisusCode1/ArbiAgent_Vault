@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronDown, Wallet, LogOut, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Wallet, LogOut, RefreshCw, AlertCircle } from 'lucide-react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { ARBITRUM_SEPOLIA_CHAIN_ID } from '../config/constants';
+
+const logoUrl = new URL('../assets/arbiagent-symbol.png', import.meta.url).href;
 
 interface NavbarProps {
   activeTab: string;
@@ -13,10 +15,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const navItems = [
+    { id: 'home', label: 'Inicio' },
     { id: 'vault', label: 'Vault' },
     { id: 'estrategia', label: 'Estrategia IA' },
     { id: 'actividad', label: 'Actividad' },
-    { id: 'como-funciona', label: 'Como funciona' },
+    { id: 'como-funciona', label: 'Cómo funciona' },
   ];
 
   const formatAddress = (addr: string | null) => {
@@ -27,125 +30,108 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const isWrongNetwork = wallet.isConnected && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
 
   return (
-    <header className="bg-[#090D16] border-b border-cyan-900/30 text-white px-6 py-4 flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 gap-4 md:gap-0">
-      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('vault')}>
-        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-400 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.15)]">
-          <span className="text-cyan-400 font-bold text-xl">A</span>
-        </div>
-        <div>
-          <h1 className="font-bold text-lg leading-none tracking-wide text-white">ArbiAgent</h1>
-          <span className="text-xs text-cyan-400/80 tracking-widest font-mono">AI DEFI VAULT</span>
-        </div>
-      </div>
-
-      <nav className="flex items-center gap-8">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
-            className={`text-sm font-medium transition-colors relative py-1 ${
-              activeTab === item.id ? 'text-cyan-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {item.label}
-            {activeTab === item.id && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-cyan-400 rounded-full" />
-            )}
-          </button>
-        ))}
-      </nav>
-
-      <div className="flex items-center gap-3">
-        {isWrongNetwork ? (
-          <button
-            onClick={switchNetwork}
-            className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/50 text-amber-300 px-3 py-1.5 rounded-lg text-xs hover:bg-amber-500/30 transition-all"
-          >
-            <AlertCircle className="w-3.5 h-3.5" />
-            <span>Cambiar a Arbitrum Sepolia</span>
-          </button>
-        ) : wallet.isConnected ? (
-          <div className="flex items-center gap-2 bg-[#121927] border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Arbitrum Sepolia</span>
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#050811]/95 backdrop-blur-xl px-6 py-4">
+      <div className="mx-auto flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
+          <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-[#d4af5f]/20 bg-[#071220] shadow-[0_0_30px_rgba(212,175,95,0.12)]">
+            <img
+              src={logoUrl}
+              alt="ArbiAgent symbol"
+              className="h-full w-full object-cover"
+            />
           </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-[#121927] border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-500">
-            <div className="w-2 h-2 rounded-full bg-slate-600" />
-            <span>Sin conexion</span>
+          <div>
+            <h1 className="font-semibold text-lg tracking-tight text-white">ArbiAgent</h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">AI DEFI VAULT</p>
           </div>
-        )}
+        </div>
 
-        <div className="relative">
-          {wallet.isConnected ? (
+        <nav className="flex flex-wrap items-center gap-4 justify-center">
+          {navItems.map((item) => (
             <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-2 bg-[#121927] hover:bg-[#1a2337] border border-cyan-500/30 px-3.5 py-1.5 rounded-lg text-xs font-mono text-cyan-300 transition-all"
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`text-sm font-medium transition ${
+                activeTab === item.id ? 'text-[#d4af5f]' : 'text-slate-400 hover:text-white'
+              }`}
             >
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>{formatAddress(wallet.account)}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+              {item.label}
             </button>
+          ))}
+        </nav>
+
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-3">
+          {isWrongNetwork ? (
+            <button
+              onClick={switchNetwork}
+              className="flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-300 transition hover:bg-amber-500/20"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Cambiar a Arbitrum Sepolia
+            </button>
+          ) : wallet.isConnected ? (
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#09111f] border border-cyan-500/10 px-4 py-2 text-xs text-cyan-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              Arbitrum Sepolia
+            </div>
           ) : (
-            <div className="flex flex-col items-end gap-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#09111f] border border-slate-800 px-4 py-2 text-xs text-slate-400">
+              <span className="h-2 w-2 rounded-full bg-slate-600" />
+              Sin conexión
+            </div>
+          )}
+
+          <div className="relative">
+            {wallet.isConnected ? (
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="inline-flex items-center gap-2 rounded-full border border-cyan-500/10 bg-[#09111f] px-4 py-2 text-xs text-cyan-300 transition hover:bg-[#0f1a2d]"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                {formatAddress(wallet.account)}
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            ) : (
               <button
                 onClick={connectWallet}
                 disabled={wallet.isConnecting}
-                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4f6dbb] to-[#d4af5f] px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-[#d4af5f]/20 transition hover:brightness-110 disabled:opacity-50"
               >
-                {wallet.isConnecting ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Wallet className="w-3.5 h-3.5" />
-                )}
-                <span>{wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}</span>
+                {wallet.isConnecting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                {wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}
               </button>
-              {wallet.error && (
-                <div className="absolute top-full right-0 mt-2 w-72 bg-rose-950/90 border border-rose-700/60 rounded-lg p-2.5 text-[11px] text-rose-300 flex items-start gap-2 shadow-xl z-50 backdrop-blur-sm">
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-rose-400" />
-                  <span>{wallet.error}</span>
-                </div>
-              )}
-            </div>
-          )}
+            )}
 
-          {showDropdown && wallet.isConnected && (
-            <div className="absolute right-0 mt-2 w-64 bg-[#0D1424] border border-slate-800 rounded-xl shadow-xl p-2 z-50">
-              <div className="px-3 py-2 border-b border-slate-800">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-slate-400 font-mono uppercase">Direccion activa</p>
+            {showDropdown && wallet.isConnected && (
+              <div className="absolute right-0 mt-2 w-72 rounded-3xl border border-slate-800 bg-[#08111f] p-3 shadow-[0_20px_40px_rgba(0,0,0,0.35)] text-sm text-slate-300">
+                <div className="px-3 py-2 border-b border-slate-800/60">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Dirección activa</p>
+                  <p className="mt-2 text-sm text-white font-mono truncate">{wallet.account}</p>
+                  {wallet.balance && <p className="mt-2 text-xs text-cyan-300">Balance: {parseFloat(wallet.balance).toFixed(4)} ETH</p>}
                 </div>
-                <p className="text-xs text-white font-mono truncate mt-0.5">{wallet.account}</p>
-                {wallet.balance && (
-                  <p className="text-[11px] text-cyan-400 font-mono mt-1">
-                    Balance: {parseFloat(wallet.balance).toFixed(4)} ETH
-                  </p>
-                )}
+                <button
+                  onClick={() => {
+                    connectWallet();
+                    setShowDropdown(false);
+                  }}
+                  className="mt-3 flex w-full items-center gap-2 rounded-2xl bg-cyan-500/10 px-3 py-2 text-left text-xs text-cyan-300 transition hover:bg-cyan-500/15"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full bg-cyan-400" />
+                  Reconectar / Cambiar wallet
+                </button>
+                <button
+                  onClick={() => {
+                    disconnectWallet();
+                    setShowDropdown(false);
+                  }}
+                  className="mt-2 flex w-full items-center gap-2 rounded-2xl bg-rose-500/10 px-3 py-2 text-left text-xs text-rose-300 transition hover:bg-rose-500/20"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Desconectar wallet
+                </button>
               </div>
-              
-              <button
-                onClick={() => {
-                  connectWallet();
-                  setShowDropdown(false);
-                }}
-                className="w-full text-left flex items-center gap-2 text-cyan-300 hover:bg-cyan-950/30 px-3 py-2 rounded-lg text-xs transition-colors mt-1"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Reconectar / Cambiar wallet</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  disconnectWallet();
-                  setShowDropdown(false);
-                }}
-                className="w-full text-left flex items-center gap-2 text-rose-400 hover:bg-rose-950/30 px-3 py-2 rounded-lg text-xs transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Desconectar wallet</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </header>
