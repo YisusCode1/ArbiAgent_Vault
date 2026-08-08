@@ -11,6 +11,7 @@ export const useVault = () => {
     totalAssets: '0.00',
     userShares: '0.0000',
     userAssets: '0.00',
+    userPrincipal: '0.00',
     performanceFee: 10,
     assetSymbol: 'USDC'
   });
@@ -24,12 +25,20 @@ export const useVault = () => {
       if (wallet.isConnected && wallet.account) {
         const totalAssets = await Web3Service.getVaultTotalAssets();
         const userVaultData = await Web3Service.getUserShares(wallet.account);
+        const userPrincipal = await Web3Service.getUserPrincipal(wallet.account);
+        
         setMetrics((prev) => ({
           ...prev,
           totalAssets,
           userShares: userVaultData.shares,
-          userAssets: userVaultData.assets
+          userAssets: userVaultData.assets,
+          userPrincipal
         }));
+
+        const userHistory = await Web3Service.fetchUserActivityFromArbiscan(wallet.account);
+        setHistory(userHistory);
+      } else {
+        setHistory([]);
       }
     } catch (err: any) {
       console.error('Error fetching vault metrics:', err);
@@ -58,33 +67,22 @@ export const useVault = () => {
 
     try {
       const hash = await Web3Service.deposit(amountStr);
-      const addedShares = numAmount / CONVERSION_RATE;
-      const currentUserAssets = parseFloat(metrics.userAssets) || 0;
-      const currentUserShares = parseFloat(metrics.userShares) || 0;
-      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
-
-      const newUserAssets = (currentUserAssets + numAmount).toFixed(2);
-      const newUserShares = (currentUserShares + addedShares).toFixed(4);
-      const newTotalAssets = (currentTotalAssets + numAmount).toFixed(2);
-
-      setMetrics((prev) => ({
-        ...prev,
-        userAssets: newUserAssets,
-        userShares: newUserShares,
-        totalAssets: newTotalAssets
-      }));
-
       setTxHash(hash);
+      
+      // Obtener datos reales de la blockchain, lo cual actualizará history con la info de Arbiscan
+      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
+      
+      const addedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
         date: new Date().toLocaleString('es-ES'),
         type: 'DEPÓSITO',
         typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
         description: 'Deposito de USDC al vault',
-        detail: `Recibidas ${addedShares.toFixed(4)} aaUSDC shares`,
+        detail: `Transacción enviada, esperando confirmación...`,
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
-        subAmount: `${addedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        subAmount: `~${addedShares.toFixed(4)} aaUSDC`,
+        status: 'Pendiente',
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
@@ -120,32 +118,22 @@ export const useVault = () => {
 
     try {
       const hash = await Web3Service.withdraw(amountStr);
-      const removedShares = numAmount / CONVERSION_RATE;
-      const currentUserShares = parseFloat(metrics.userShares) || 0;
-      const currentTotalAssets = parseFloat(metrics.totalAssets) || 0;
-
-      const newUserAssets = Math.max(0, currentUserAssets - numAmount).toFixed(2);
-      const newUserShares = Math.max(0, currentUserShares - removedShares).toFixed(4);
-      const newTotalAssets = Math.max(0, currentTotalAssets - numAmount).toFixed(2);
-
-      setMetrics((prev) => ({
-        ...prev,
-        userAssets: newUserAssets,
-        userShares: newUserShares,
-        totalAssets: newTotalAssets
-      }));
-
       setTxHash(hash);
+      
+      // Obtener datos reales de la blockchain
+      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
+
+      const removedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
         date: new Date().toLocaleString('es-ES'),
         type: 'RETIRO',
         typeBadge: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
         description: 'Retiro de USDC del vault',
-        detail: `Quemadas ${removedShares.toFixed(4)} aaUSDC shares`,
+        detail: `Transacción enviada, esperando confirmación...`,
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${removedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        status: 'Pendiente',
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 

@@ -28,7 +28,7 @@ export interface StrategyResponse {
   volatility_7d: number;
   recommended_protocol: string;
   timestamp: string;
-  startbase_score: number;
+  arbiagent_score: number;
   active_mode?: string;
   mode_description?: string;
 }
@@ -52,6 +52,7 @@ export interface VaultMetrics {
   totalAssets: string;
   userShares: string;
   userAssets: string;
+  userPrincipal: string;
   performanceFee: number;
   assetSymbol: string;
 }
@@ -68,4 +69,5 @@ export interface TransactionRecord {
   amountColor?: string;
   status: string;
   hash: string;
+  timestampMs?: number;
 }

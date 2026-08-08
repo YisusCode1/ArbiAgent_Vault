@@ -15,7 +15,7 @@ class StrategyRecommendation(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     estimated_apy: float = Field(..., ge=0.0)
     risk_level: str
-    startbase_score: float = Field(..., ge=0.0, le=100.0)
+    arbiagent_score: float = Field(..., ge=0.0, le=100.0)
 
     @field_validator("confidence")
     @classmethod
@@ -39,12 +39,12 @@ class StrategyResponse(BaseModel):
     volatility_7d: float
     recommended_protocol: str
     timestamp: str
-    startbase_score: float
+    arbiagent_score: float
     active_mode: str
     mode_description: str
 
 class RebalanceRequest(BaseModel):
-    vault_address: Optional[str] = "0x8a731d082a895d940a02128a3a8174e92410aec1"
+    vault_address: Optional[str] = None
     target_protocol: Optional[str] = "Aave V3"
     mode: Optional[str] = "moderado"
 
@@ -77,7 +77,7 @@ class AgentStatus(BaseModel):
     cache_size: int
     model: str
 
-class StartbaseMetrics(BaseModel):
+class ArbiAgentMetrics(BaseModel):
     ecosystem: str
     active_vaults: int
     total_volume_usd: float

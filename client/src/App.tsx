@@ -15,7 +15,7 @@ export function AppContent() {
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-1 container mx-auto py-6">
-        {activeTab === 'home' && <HomeView onEnterVault={() => setActiveTab('vault')} />}
+        {activeTab === 'home' && <HomeView onNavigate={setActiveTab} />}
         {activeTab === 'vault' && <VaultView />}
         {activeTab === 'estrategia' && <EstrategiaIAView />}
         {activeTab === 'actividad' && <ActividadView />}

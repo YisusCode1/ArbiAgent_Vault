@@ -22,7 +22,7 @@ export const useStrategy = () => {
     volatility_7d: 7.85,
     recommended_protocol: 'Aave V3',
     timestamp: new Date().toISOString(),
-    startbase_score: 94.5,
+    arbiagent_score: 94.5,
     active_mode: 'moderado',
     mode_description: 'Balance optimo entre rendimiento y riesgo (ratio Sharpe).'
   });

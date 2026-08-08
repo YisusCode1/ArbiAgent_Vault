@@ -5,7 +5,7 @@ import { useVault } from '../hooks/useVault';
 import { useWeb3 } from '../hooks/useWeb3';
 
 interface HomeViewProps {
-  onEnterVault: () => void;
+  onNavigate: (tab: string) => void;
 }
 
 const worldCards = [
@@ -26,7 +26,7 @@ const worldCards = [
   },
 ];
 
-export const HomeView: React.FC<HomeViewProps> = ({ onEnterVault }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
   const { wallet, connectWallet, disconnectWallet } = useWeb3();
   const { metrics } = useVault();
 
@@ -98,9 +98,16 @@ export const HomeView: React.FC<HomeViewProps> = ({ onEnterVault }) => {
                 <span className="text-xs uppercase tracking-[0.3em] text-slate-500">{card.title}</span>
                 <h2 className="mt-4 text-2xl font-semibold text-white">{card.subtitle}</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-400">{card.description}</p>
-                <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d4af5f]/20 bg-[#d4af5f]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af5f]">
+                <button
+                  onClick={() => {
+                    if (index === 0) onNavigate('vault');
+                    else if (index === 1) onNavigate('estrategia');
+                    else onNavigate('como-funciona');
+                  }}
+                  className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d4af5f]/20 bg-[#d4af5f]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af5f] transition hover:bg-[#d4af5f]/20"
+                >
                   Explorar mundo
-                </div>
+                </button>
               </motion.div>
             ))}
           </motion.div>
@@ -193,7 +200,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onEnterVault }) => {
               </button>
             ) : (
               <button
-                onClick={onEnterVault}
+                onClick={() => onNavigate('vault')}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af5f] px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-[#d4af5f]/20 transition hover:bg-[#c9a94a]"
               >
                 <ArrowRight className="h-4 w-4" />
