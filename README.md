@@ -66,7 +66,7 @@ realmente vino de la IA y no fue falsificada ni alterada.
 
 ```
 ArbiAgent/
-├── cliente/          # Frontend (React + Vite + TypeScript)
+├── client/          # Frontend (React + Vite + TypeScript)
 ├── contracts/        # Smart contracts (Foundry)
 │   ├── src/           # ArbiAgentVault.sol
 │   └── test/           # Tests con Foundry
