@@ -13,21 +13,9 @@ export function Footer() {
 
         <div className="flex items-center gap-4 text-xs text-slate-400">
           
-            href="https://github.com/YisusCode1/ArbiAgent_Vault"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-[#d4af5f] transition-colors"
-          >
-            GitHub
-          </a>
-          
-            href="https://sepolia.arbiscan.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-[#d4af5f] transition-colors"
-          >
-            Arbiscan
-          </a>
+            <a href="https://github.com/YisusCode1/ArbiAgent_Vault" target="_blank" rel="noopener noreferrer" className="hover:text-[#d4af5f] transition-colors">GitHub</a>
+            <a href="https://sepolia.arbiscan.io" target="_blank" rel="noopener noreferrer" className="hover:text-[#d4af5f] transition-colors">Arbiscan</a>          
+            
         </div>
       </div>
     </footer>
