@@ -41,7 +41,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
         <section className="space-y-8 rounded-[36px] border border-white/10 bg-[#070b16]/90 p-8 shadow-[0_50px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="inline-flex items-center gap-3 rounded-full border border-[#d4af5f]/20 bg-[#d4af5f]/10 px-4 py-2 text-xs uppercase tracking-[0.32em] text-[#d4af5f]">
             <span className="h-2.5 w-2.5 rounded-full bg-[#d4af5f]" />
-            ArbiAgent Worlds
+            IA VERIFICADA ON-CHAIN
           </div>
 
           <motion.div
@@ -51,10 +51,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
             className="space-y-6"
           >
             <h1 className="max-w-3xl text-5xl font-semibold leading-tight tracking-[-0.03em] text-white sm:text-6xl">
-              Tu ecosistema DeFi con IA, ahora en un hub visual y profundo.
+              Deposita USDC, deja que la IA decida cuándo generar rendimiento en Aave y retira cuando quieras.
             </h1>
             <p className="max-w-2xl text-base leading-8 text-slate-400 sm:text-lg">
-              Conecta tu wallet, entra directamente al dashboard y descubre un flujo de administración que combina seguridad, análisis y un dashboard inspirador en cada sección.
+              Conecta tu wallet en Arbitrum Sepolia y empieza: deposita, sigue el rendimiento en tiempo real, y deja que la IA rebalancee entre USDC y Aave según tu perfil de riesgo.
             </p>
           </motion.div>
 
@@ -70,7 +70,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 <span className="text-xs uppercase tracking-[0.24em]">Rendimiento</span>
               </div>
               <p className="mt-4 text-lg font-semibold text-white">Optimizado para Arbitrum Sepolia</p>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Monitorea APY, TVL y posición en un solo lugar con un dashboard elegante.</p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">Monitorea APY, TVL y tu posición en tiempo real, actualizados directamente desde el contrato.</p>
             </div>
             <div className="rounded-[28px] border border-white/10 bg-[#08101f]/90 p-6 shadow-[0_20px_40px_rgba(0,0,0,0.16)]">
               <div className="flex items-center gap-3 text-[#d4af5f]">
@@ -78,7 +78,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 <span className="text-xs uppercase tracking-[0.24em]">Seguridad</span>
               </div>
               <p className="mt-4 text-lg font-semibold text-white">Tu wallet en control</p>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Todas las acciones se ejecutan desde tu wallet, sin perder visibilidad ni control.</p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">Nunca cedes custodia de tus fondos. Cada decisión de la IA queda firmada y verificada on-chain antes de ejecutarse.</p>
             </div>
           </motion.div>
 

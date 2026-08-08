@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Web3Provider } from './context/Web3Context';
 import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
 import { HomeView } from './components/HomeView';
 import { VaultView } from './components/VaultView';
 import { EstrategiaIAView } from './components/EstrategiaIAView';
@@ -21,6 +22,8 @@ export function AppContent() {
         {activeTab === 'actividad' && <ActividadView />}
         {activeTab === 'como-funciona' && <ComoFuncionaView />}
       </main>
+
+      <Footer />
     </div>
   );
 }
