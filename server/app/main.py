@@ -9,7 +9,7 @@ from app.models import (
     StrategyResponse,
     RebalanceRequest,
     RebalanceResponse,
-    StartbaseMetrics,
+    ArbiAgentMetrics,
     RiskModeInfo,
     AgentStatus,
     MarketData
@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("ArbiAgentAPI")
 
 app = FastAPI(
-    title="ArbiAgent AI Engine - Startbase API & EIP-712 Signer",
+    title="ArbiAgent AI Engine - ArbiAgent API & EIP-712 Signer",
     description="Backend de Inteligencia Artificial y API REST para Vault DeFi ERC-4626 en Arbitrum Sepolia",
     version="2.0.0"
 )
@@ -96,7 +96,7 @@ async def get_current_strategy(
             volatility_7d=market_data.volatility_7d,
             recommended_protocol="Aave V3",
             timestamp=datetime.datetime.utcnow().isoformat(),
-            startbase_score=recommendation.startbase_score,
+            arbiagent_score=recommendation.arbiagent_score,
             active_mode=mode_info.id,
             mode_description=mode_info.description
         )
@@ -142,9 +142,9 @@ async def execute_rebalance(payload: Optional[RebalanceRequest] = None):
         logger.error(f"Error al ejecutar rebalanceo: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno al calcular la señal de rebalanceo: {str(e)}")
 
-@app.get("/api/v1/startbase", response_model=StartbaseMetrics)
-def get_startbase_metrics():
-    return StartbaseMetrics(
+@app.get("/api/v1/arbiagent", response_model=ArbiAgentMetrics)
+def get_arbiagent_metrics():
+    return ArbiAgentMetrics(
         ecosystem="Arbitrum Sepolia",
         active_vaults=1,
         total_volume_usd=0.0,

@@ -187,15 +187,16 @@ class GeminiAgent:
             logger.warning("SDK de Gemini no disponible o API key no configurada.")
             return None
 
-        # Extraer JSON de la respuesta (por si viene rodeado de bloques markdown)
-        clean_text = text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        if clean_text.startswith("```"):
-            clean_text = clean_text[3:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-        clean_text = clean_text.strip()
+        # Limpiar la respuesta antes de procesarla
+        texto_crudo = text
+        # Quitar las etiquetas de markdown si la IA las pone
+        clean_text = texto_crudo.replace("```json", "").replace("```", "").strip()
+        
+        # Asegurar que extraemos solo el bloque JSON por si Gemini añade texto adicional
+        start_idx = clean_text.find('{')
+        end_idx = clean_text.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            clean_text = clean_text[start_idx:end_idx+1]
 
         return json.loads(clean_text)
 
@@ -203,16 +204,17 @@ class GeminiAgent:
         base_instructions = """
         Eres un agente de Inteligencia Artificial especializado en optimizacion de vaults DeFi ERC-4626 en Arbitrum Sepolia.
         Tu funcion es analizar metricas financieras de Aave V3 y recomendar la accion del vault.
-        DEBES responder UNICAMENTE con un objeto JSON valido con la siguiente estructura exacta:
-        {
-            "action": "HOLD" | "SUPPLY" | "WITHDRAW",
-            "confidence": float entre 0.0 y 1.0,
-            "estimated_apy": float >= 0.0,
-            "risk_level": "Bajo" | "Medio" | "Alto",
-            "startbase_score": float entre 0.0 y 100.0
-        }
+        
+        Reglas estrictas para los valores:
+        - action: Debe ser exactamente "HOLD", "SUPPLY" o "WITHDRAW".
+        - confidence: Float entre 0.0 y 1.0.
+        - estimated_apy: Float mayor o igual a 0.0.
+        - risk_level: Debe ser exactamente "Bajo", "Medio" o "Alto".
+        - arbiagent_score: Float entre 0.0 y 100.0.
+        
+        DEBES responder UNICAMENTE con un objeto JSON valido. SIN texto adicional. SIN comentarios.
         Ejemplo de respuesta valida:
-        {"action": "HOLD", "confidence": 0.92, "estimated_apy": 5.74, "risk_level": "Bajo", "startbase_score": 94.5}
+        {"action": "HOLD", "confidence": 0.92, "estimated_apy": 5.74, "risk_level": "Bajo", "arbiagent_score": 94.5}
         """
 
         mode_prompts = {
@@ -258,7 +260,7 @@ class GeminiAgent:
                 confidence=0.88,
                 estimated_apy=max(4.2, data.supply_rate),
                 risk_level="Bajo",
-                startbase_score=95.0
+                arbiagent_score=95.0
             )
         elif mode == RiskMode.AGRESIVO:
             return StrategyRecommendation(
@@ -266,7 +268,7 @@ class GeminiAgent:
                 confidence=0.82,
                 estimated_apy=max(7.5, data.supply_rate * 1.3),
                 risk_level="Alto",
-                startbase_score=88.5
+                arbiagent_score=88.5
             )
         else:
             return StrategyRecommendation(
@@ -274,5 +276,5 @@ class GeminiAgent:
                 confidence=0.90,
                 estimated_apy=max(5.74, data.supply_rate),
                 risk_level="Medio",
-                startbase_score=94.5
+                arbiagent_score=94.5
             )

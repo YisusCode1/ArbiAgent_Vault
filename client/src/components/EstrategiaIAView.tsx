@@ -255,9 +255,9 @@ export const EstrategiaIAView: React.FC = () => {
               <div className="flex items-center justify-between gap-4 p-3 bg-[#070B14] border border-slate-800 rounded-xl">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs text-slate-300">Puntaje Startbase</span>
+                  <span className="text-xs text-slate-300">Puntaje ArbiAgent</span>
                 </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">{strategy.startbase_score} / 100</span>
+                <span className="text-xs font-mono font-bold text-emerald-400">{strategy.arbiagent_score} / 100</span>
               </div>
             </div>
           </div>

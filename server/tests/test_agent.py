@@ -41,7 +41,7 @@ def test_agent_valid_response():
             "confidence": 0.95,
             "estimated_apy": 8.5,
             "risk_level": "Alto",
-            "startbase_score": 90.0
+            "arbiagent_score": 90.0
         }
 
         with patch.object(agent, '_call_gemini_with_rotation', new_callable=AsyncMock) as mock_gemini:

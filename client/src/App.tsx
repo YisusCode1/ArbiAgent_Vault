@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { Web3Provider } from './context/Web3Context';
 import { Navbar } from './components/Navbar';
+import { HomeView } from './components/HomeView';
 import { VaultView } from './components/VaultView';
 import { EstrategiaIAView } from './components/EstrategiaIAView';
 import { ActividadView } from './components/ActividadView';
 import { ComoFuncionaView } from './components/ComoFuncionaView';
 
 export function AppContent() {
-  const [activeTab, setActiveTab] = useState('vault');
+  const [activeTab, setActiveTab] = useState('home');
 
   return (
     <div className="min-h-screen bg-[#050811] text-slate-100 font-sans antialiased flex flex-col">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       
       <main className="flex-1 container mx-auto py-6">
+        {activeTab === 'home' && <HomeView onNavigate={setActiveTab} />}
         {activeTab === 'vault' && <VaultView />}
         {activeTab === 'estrategia' && <EstrategiaIAView />}
         {activeTab === 'actividad' && <ActividadView />}

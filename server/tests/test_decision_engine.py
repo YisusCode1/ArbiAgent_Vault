@@ -28,7 +28,7 @@ def test_conservador_exposure_limit():
         confidence=0.9,
         estimated_apy=6.0,
         risk_level="Bajo",
-        startbase_score=95.0
+        arbiagent_score=95.0
     )
 
     signal = calculate_rebalance_signal("conservador", market_data, rec)
@@ -52,7 +52,7 @@ def test_high_utilization_reduction():
         confidence=0.8,
         estimated_apy=10.0,
         risk_level="Medio",
-        startbase_score=80.0
+        arbiagent_score=80.0
     )
 
     signal = calculate_rebalance_signal("moderado", market_data, rec)

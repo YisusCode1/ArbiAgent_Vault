@@ -28,7 +28,7 @@ export interface StrategyResponse {
   volatility_7d: number;
   recommended_protocol: string;
   timestamp: string;
-  startbase_score: number;
+  arbiagent_score: number;
   active_mode?: string;
   mode_description?: string;
 }
