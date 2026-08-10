@@ -9,6 +9,17 @@ categoría **IA - Blockchain**.
 
 ---
 
+##  Demo en vivo
+
+- **Frontend**: https://arbi-agent-vault.vercel.app
+- **Backend / API**: https://arbiagent-vault.onrender.com
+
+⚠️ El backend corre en un plan gratuito que "duerme" tras un rato de
+inactividad — la primera petición después de estar inactivo puede
+tardar hasta 50 segundos en responder mientras el servicio despierta.
+
+---
+
 ##  El problema
 
 Gestionar rendimiento en DeFi manualmente implica monitorear tasas,
@@ -54,6 +65,8 @@ Un vault donde:
 └─────────────┘
 ```
 
+Diagrama detallado (Mermaid, interactivo en GitHub): [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md)
+
 **Por qué firma en vez de solo un rol autorizado:** cualquiera puede
 enviar la transacción de ejecución, pero el contrato solo la procesa
 si la firma corresponde a la clave privada del agente de IA — esto
@@ -66,15 +79,17 @@ realmente vino de la IA y no fue falsificada ni alterada.
 
 ```
 ArbiAgent/
-├── client/          # Frontend (React + Vite + TypeScript)
-├── contracts/        # Smart contracts (Foundry)
-│   ├── src/           # ArbiAgentVault.sol
-│   └── test/           # Tests con Foundry
-├── server/            # Backend / agente de IA (Python)
-├── docs/               # Documentacion de integracion entre equipos
+├── client/            # Frontend (React + Vite + TypeScript)
+├── contracts/          # Smart contracts (Foundry)
+│   ├── src/             # ArbiAgentVault.sol
+│   └── test/             # Tests con Foundry
+├── server/              # Backend / agente de IA (Python)
+├── docs/                 # Documentacion de integracion entre equipos
+│   ├── ARQUITECTURA.md
 │   ├── INTEGRACION_IA.md
-│   ├── INTEGRACION_FRONTEND.md│   
-└── compose.yml        # Orquestacion de servicios con Docker
+│   ├── INTEGRACION_FRONTEND.md
+│   └── ORIENTACION_FRONTEND.md
+└── compose.yml          # Orquestacion de servicios con Docker
 ```
 
 ---
@@ -89,7 +104,7 @@ ArbiAgent/
 | Backend / Agente IA | Python, FastAPI, Gemini |
 | Frontend | React, TypeScript, Vite |
 | Wallets | Wagmi, RainbowKit |
-| Infraestructura | Docker Compose |
+| Infraestructura | Docker Compose, Vercel (frontend), Render (backend) |
 
 ---
 
@@ -115,7 +130,7 @@ uvicorn app.main:app --reload
 ### Frontend
 
 ```bash
-cd cliente
+cd client
 npm install
 npm run dev
 ```
@@ -161,7 +176,9 @@ tokens directamente en Arbiscan.
   compatible con cualquier herramienta/librería que ya sepa leerlo.
 - **Un solo protocolo (Aave V3)**: decisión deliberada dado el tiempo
   del hackathon — mejor una integración real y sólida con un protocolo
-  que una simulación superficial de varios.
+  que una simulación superficial de varios. El agente de IA está
+  diseñado para evaluar múltiples fuentes de rendimiento a futuro,
+  no acoplado a un solo protocolo.
 - **Liquidez just-in-time**: el vault recupera automáticamente fondos
   desde Aave al momento del retiro, para que el usuario nunca vea
   fallar una transacción solo porque el capital estaba "trabajando".
