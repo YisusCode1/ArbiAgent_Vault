@@ -2,8 +2,6 @@
 
 Diagrama de la interacción entre los componentes principales del sistema.
 
-# Arquitectura — ArbiAgent
-
 📐 Ver en Figma: https://bit.ly/4cxNcvN 
 
 ## Descripción del flujo
