@@ -26,6 +26,15 @@ Gestionar rendimiento en DeFi manualmente implica monitorear tasas,
 mover fondos entre protocolos, y reaccionar a cambios de mercado
 constantemente — algo poco práctico para la mayoría de usuarios.
 
+## 👤 Público objetivo
+
+Alguien que ya tiene stablecoins o ETH ocioso y quiere que generen
+rendimiento, pero no quiere convertirse en un gestor activo de DeFi
+revisando tasas y protocolos todos los días — busca una experiencia
+tipo "depositar y confiar", con la posibilidad de verificar en
+cualquier momento, on-chain, que el sistema está actuando como dice
+actuar.
+
 ##  La solución
 
 Un vault donde:
@@ -88,7 +97,6 @@ ArbiAgent/
 │   ├── ARQUITECTURA.md
 │   ├── INTEGRACION_IA.md
 │   ├── INTEGRACION_FRONTEND.md
-│   └── ORIENTACION_FRONTEND.md
 └── compose.yml          # Orquestacion de servicios con Docker
 ```
 
