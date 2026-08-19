@@ -11,6 +11,8 @@ import {
 } from '../config/constants';
 import { RebalanceSignalResponse, TransactionRecord } from '../types';
 
+const DEPLOY_BLOCK = 294890826;
+
 declare global {
   interface Window {
     ethereum?: any;
@@ -200,8 +202,8 @@ export class Web3Service {
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       // Para Hackathon buscamos en los ultimos bloques
-      const deposits = await vaultContract.queryFilter(depositFilter, -100000);
-      const withdrawals = await vaultContract.queryFilter(withdrawFilter, -100000);
+      const deposits = await vaultContract.queryFilter(depositFilter, DEPLOY_BLOCK);
+      const withdrawals = await vaultContract.queryFilter(withdrawFilter, DEPLOY_BLOCK);
 
       let totalDeposited = 0n;
       for (const d of deposits) {
@@ -227,7 +229,7 @@ export class Web3Service {
       const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
 
       const filter = vaultContract.filters.SignalExecuted();
-      const events = await vaultContract.queryFilter(filter, -5000);
+      const events = await vaultContract.queryFilter(filter, DEPLOY_BLOCK);
 
       if (events && events.length > 0) {
         return events.map((ev: any) => ({
@@ -257,8 +259,8 @@ export class Web3Service {
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       const [deposits, withdrawals] = await Promise.all([
-        vaultContract.queryFilter(depositFilter, -100000),
-        vaultContract.queryFilter(withdrawFilter, -100000)
+        vaultContract.queryFilter(depositFilter, DEPLOY_BLOCK),
+        vaultContract.queryFilter(withdrawFilter, DEPLOY_BLOCK)
       ]);
 
       const records: TransactionRecord[] = [];
