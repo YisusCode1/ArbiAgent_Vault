@@ -49,6 +49,7 @@ export const VaultView: React.FC = () => {
   // Area Chart Data
   const chartData = useMemo(() => {
     if (userAssetsNum === 0) return [];
+    if (userAssetsNum > 1000000 || userPrincipalNum > 1000000) return []; // Guard: descarta valores anomalos
     const data = [];
     let currentVal = userPrincipalNum || (userAssetsNum * 0.98); 
     const step = (userAssetsNum - currentVal) / 6;
