@@ -149,7 +149,7 @@ export const VaultView: React.FC = () => {
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} domain={['dataMin - 0.5', 'dataMax + 0.5']} />
+                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${Number(val).toFixed(2)}`} domain={['dataMin - 0.5', 'dataMax + 0.5']} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
                       itemStyle={{ color: '#e4e4e7' }}
