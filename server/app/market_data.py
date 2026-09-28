@@ -40,11 +40,29 @@ AAVE_DATA_PROVIDER_ABI = [
     }
 ]
 
-# ABI minimalista del Vault ERC-4626 para leer totalAssets
+# ABI minimalista del Vault ERC-4626: totalAssets y la direccion publica del aToken
 VAULT_ABI = [
     {
         "inputs": [],
         "name": "totalAssets",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "aToken",
+        "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
+# ABI minimalista ERC-20 para leer el balance de aToken del vault
+ERC20_BALANCE_ABI = [
+    {
+        "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+        "name": "balanceOf",
         "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
         "stateMutability": "view",
         "type": "function"
@@ -77,23 +95,29 @@ def fetch_market_data(vault_address: str = None) -> MarketData:
         total_variable_debt = reserve_data[4] / 1e6
         utilization = (total_variable_debt / total_atoken) if total_atoken > 0 else 0.0
 
-        # Leer TVL real del Vault (totalAssets)
+        # Leer TVL real del Vault (totalAssets) y su posicion real en Aave (aToken)
         tvl = 0.0
+        current_allocation = 0.0
         try:
             vault_addr_checksum = Web3.to_checksum_address(target_vault)
             vault_contract = w3.eth.contract(address=vault_addr_checksum, abi=VAULT_ABI)
+
             raw_tvl = vault_contract.functions.totalAssets().call()
             tvl = raw_tvl / 1e6  # USDC 6 decimales
-        except Exception as ve:
-            logger.warning(f"No se pudo leer totalAssets del Vault ({target_vault}): {ve}")
 
-        # Calcular current_allocation como proporcion del TVL depositada en Aave
-        # Por ahora se estima en base a la utilizacion del vault
-        current_allocation = min(0.95, utilization + 0.10) if tvl > 0 else 0.50
+            # Asignacion real: fraccion del TVL del vault que esta depositada en Aave
+            atoken_address = vault_contract.functions.aToken().call()
+            atoken_contract = w3.eth.contract(address=atoken_address, abi=ERC20_BALANCE_ABI)
+            raw_deployed = atoken_contract.functions.balanceOf(vault_addr_checksum).call()
+            if raw_tvl > 0:
+                current_allocation = min(1.0, raw_deployed / raw_tvl)
+        except Exception as ve:
+            logger.warning(f"No se pudo leer el estado del Vault ({target_vault}): {ve}")
 
         logger.info(
             f"Datos on-chain obtenidos: supply_apy={supply_apy:.2f}%, "
-            f"utilization={utilization:.2f}, tvl={tvl:.2f} USDC"
+            f"utilization={utilization:.2f}, tvl={tvl:.2f} USDC, "
+            f"current_allocation={current_allocation:.4f}"
         )
 
         return MarketData(
