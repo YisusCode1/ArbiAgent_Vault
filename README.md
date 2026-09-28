@@ -14,7 +14,7 @@ category **AI - Blockchain**.
 ## Live Demo
 
 - **Frontend**: https://arbi-agent-vault.vercel.app
-- **Backend / API**: https://arbiagent-vault.onrender.com
+- **Backend / API**: https://arbiagent-vault-ziq4.onrender.com
 
 ⚠️ The backend runs on a free tier that "sleeps" after a period of
 inactivity — the first request after being idle can take up to 50
@@ -203,25 +203,26 @@ analysis (see [Security & Testing](#security--testing) below).
 
 ## On-Chain Evidence (End-to-End Proof)
 
-The transactions below were recorded against a **previous deployment**
-of the contract (before the cooldown hardening and Slither fixes).
 The complete flow — deposit, EIP-712 signature from the AI agent,
 on-chain execution, and withdrawal with automatic liquidity recovery
-from Aave — was verified end-to-end on Arbitrum Sepolia:
+from Aave — was executed with real transactions on Arbitrum Sepolia
+against the current deployment
+([`0x6Ab1F75e...A0Df8`](https://sepolia.arbiscan.io/address/0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8)),
+triggered from the live frontend:
 
-| Test | What it proves | Transaction |
+| Step | What it proves | Transaction |
 |---|---|---|
-| Deposit + executed AI signal | The agent signs the decision, the contract verifies it and moves funds into Aave V3 | [`0x4b352f55...45353014`](https://sepolia.arbiscan.io/tx/4b352f5547e7eb189f2d28e395f77921d9f93676bec8d8c312e03e2e45353014) |
-| Withdrawal with just-in-time liquidity | The vault automatically recovers funds from Aave on withdrawal, without failing | [`0xe27f1116...b250ae3d2`](https://sepolia.arbiscan.io/tx/e27f11164778d499846cd852b5fe702fcf1830fe538decf901c1a95b250ae3d2) |
+| 1. Deposit (12 USDC) | The user deposits USDC and receives vault shares (ERC-4626) | [`0x7b9edfc1...bef6481`](https://sepolia.arbiscan.io/tx/0x7b9edfc1486833e769da82009b2a589b6ab6a8cea624ac2e90fbe24dfbef6481) |
+| 2. AI signal executed | The AI agent's EIP-712 signature is verified on-chain and the vault supplies 4.8 USDC to Aave V3 (`SignalExecuted`: supply 4,800,000, withdraw 0) | [`0x9849ff5f...a962dbb1`](https://sepolia.arbiscan.io/tx/0x9849ff5f2b33ff02926339a4185c0983e12705777393edfd071a07b2a962dbb1) |
+| 3. Withdrawal with just-in-time liquidity | 30 USDC withdrawn while only ~27.2 USDC were liquid: the vault recovered the missing ~2.8 USDC from Aave (aToken burned) inside the same transaction | [`0x6de83200...742d9a8`](https://sepolia.arbiscan.io/tx/0x6de832002ebad1376f9274dfcfef2bc297bf293a93303eb394bea22ab742d9a8) |
 
-**TODO before submission:** replace the two transactions above with
-fresh ones against the current deployment
-(`0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8`), so the linked evidence
-matches the exact code that's live and verified on Arbiscan.
+All three transactions are publicly verifiable — anyone can inspect the
+emitted events (`SignalExecuted`, Aave's `Supply`) and the token
+movements directly on Arbiscan.
 
-Both transactions are publicly verifiable — anyone can inspect the
-emitted events (`SignalExecuted`) and token movements directly on
-Arbiscan.
+After step 2 the vault enters its 8-hour rebalance cooldown: a second
+signal submitted right away is rejected on-chain with
+`Cooldown activo`, which is the intended behavior.
 
 ---
 
@@ -264,12 +265,12 @@ Arbiscan.
 
 ## Team and Roles
 
-| Role | Responsible |
+| Rol | Responsable |
 |---|---|
-| Smart Contracts / On-chain Integration | Jesús Alfaro |
-| AI Agent / Middleware | Dante Olivas |
+| Contratos inteligentes / Integración on-chain | Jesús Alfaro |
+| Agente de IA / Middleware | Dante Olivas |
 | Frontend / UX / Wallets | Geraldin Nuñez / Dante Olivas |
-| Product / Backend API | Dante Olivas / Nayit Ruiz |
+| Producto / API de backend | Dante Olivas / Jesús Alfaro |
 
 ---
 

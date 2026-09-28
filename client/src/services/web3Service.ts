@@ -11,7 +11,7 @@ import {
 } from '../config/constants';
 import { RebalanceSignalResponse, TransactionRecord } from '../types';
 
-const DEPLOY_BLOCK = 294890826;
+const DEPLOY_BLOCK = 310400935;
 
 declare global {
   interface Window {
