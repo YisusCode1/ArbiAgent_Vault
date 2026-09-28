@@ -1,6 +1,7 @@
 import { StrategyResponse, RebalanceSignalResponse, RiskMode, RiskModeInfo } from '../types';
 
 const API_BASE_URL = '/api/v1';
+const INTERNAL_API_KEY = import.meta.env.VITE_INTERNAL_API_KEY;
 
 export class ApiService {
   public static async getRiskModes(): Promise<RiskModeInfo[]> {
@@ -24,7 +25,10 @@ export class ApiService {
   public static async triggerRebalance(mode: RiskMode = 'moderado'): Promise<RebalanceSignalResponse> {
     const response = await fetch(`${API_BASE_URL}/rebalance`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': INTERNAL_API_KEY
+      },
       body: JSON.stringify({ mode })
     });
     if (!response.ok) {

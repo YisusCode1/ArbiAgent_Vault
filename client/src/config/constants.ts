@@ -3,7 +3,7 @@ export const ARBITRUM_SEPOLIA_HEX_CHAIN_ID = '0x66eee';
 export const ARBITRUM_SEPOLIA_RPC = 'https://sepolia-rollup.arbitrum.io/rpc';
 export const ARBITRUM_SEPOLIA_EXPLORER = 'https://sepolia.arbiscan.io';
 
-export const VAULT_CONTRACT_ADDRESS = '0x9271faFfEa4e430352F9d6a585b712b0922102C3';
+export const VAULT_CONTRACT_ADDRESS = '0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8';
 export const USDC_CONTRACT_ADDRESS = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
 
 export const VAULT_ABI = [

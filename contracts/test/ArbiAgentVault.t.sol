@@ -188,6 +188,41 @@ contract ArbiAgentVaultTest is Test {
         vault.executeSignal(100 * 10 ** 18, 0, 0, 1, deadline, sig);
     }
 
+    function test_RevertOnCooldownActive_ThenSucceedsAfterWarp() public {
+        vm.startPrank(user);
+        asset.approve(address(vault), 500 * 10 ** 18);
+        vault.deposit(500 * 10 ** 18, user);
+        vm.stopPrank();
+
+        uint256 deadline1 = block.timestamp + 1 hours;
+        bytes memory sig1 = _signSignal(100 * 10 ** 18, 0, 0, 1, deadline1);
+
+        // Primera señal: se ejecuta sin problema (no hay cooldown previo)
+        vault.executeSignal(100 * 10 ** 18, 0, 0, 1, deadline1, sig1);
+        assertEq(vault.lastExecutionTime(), block.timestamp);
+
+        // Deadline con margen amplio (9h) para que siga valida durante todo el warp de 8h
+        uint256 deadline2 = block.timestamp + 9 hours;
+        bytes memory sig2 = _signSignal(50 * 10 ** 18, 0, 0, 2, deadline2);
+
+        // Segunda señal INMEDIATAMENTE despues, sin avanzar el tiempo -> debe revertir por cooldown
+        vm.expectRevert("Cooldown activo: espera antes de rebalancear de nuevo");
+        vault.executeSignal(50 * 10 ** 18, 0, 0, 2, deadline2, sig2);
+
+        // Avanzamos el tiempo justo antes de que termine el cooldown (8h - 1s) -> sigue bloqueado
+        vm.warp(block.timestamp + 8 hours - 1);
+        vm.expectRevert("Cooldown activo: espera antes de rebalancear de nuevo");
+        vault.executeSignal(50 * 10 ** 18, 0, 0, 2, deadline2, sig2);
+
+        // Avanzamos 1 segundo mas (ya pasaron las 8h completas) -> ahora si pasa
+        vm.warp(block.timestamp + 1);
+        vault.executeSignal(50 * 10 ** 18, 0, 0, 2, deadline2, sig2);
+
+        assertEq(aToken.balanceOf(address(vault)), 150 * 10 ** 18); // 100 + 50
+        assertEq(vault.lastExecutionTime(), block.timestamp);
+    }
+    
+
     function test_WithdrawPullsLiquidityFromAave() public {
         // El usuario deposita 500
         vm.startPrank(user);

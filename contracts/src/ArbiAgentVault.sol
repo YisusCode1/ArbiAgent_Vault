@@ -38,6 +38,15 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
     // --- Anti-replay para las firmas ---
     mapping(uint256 => bool) public usedNonces;
 
+    // --- Cooldown entre rebalanceos ---
+    // Este vault opera en modo MODERADO: cooldown fijo de 8 horas entre
+    // ejecuciones de executeSignal(), igual al valor definido en
+    // decision_engine.py (RISK_CONFIGS[Moderado].rebalance_cooldown_hours).
+    // Se hace cumplir on-chain via el require() en executeSignal(), no es
+    // solo un dato informativo mostrado en el frontend.
+    uint256 public constant REBALANCE_COOLDOWN = 8 hours;
+    uint256 public lastExecutionTime;
+
     // Estructura tipada que la IA firma off-chain (formato EIP-712)
     bytes32 private constant SIGNAL_TYPEHASH =
         keccak256("RebalanceSignal(uint256 amountToSupply,uint256 amountToWithdraw,uint256 profitGenerated,uint256 nonce,uint256 deadline)");
@@ -46,16 +55,17 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
     event FeeCollected(address indexed treasury, uint256 amount);
     event AIAgentUpdated(address indexed newAIAgent);
     event TreasuryUpdated(address indexed newTreasury);
+    event PerformanceFeeUpdated(uint256 newFee);
 
     constructor(
-        IERC20 _asset,
+        IERC20 assetToken,
         address _aiAgent,
         address _treasury,
         address _aavePool,
         address _aToken
     )
         ERC20("ArbiAgent Vault Share", "aAVault")
-        ERC4626(_asset)
+        ERC4626(assetToken)
         Ownable(msg.sender)
         EIP712("ArbiAgentVault", "1") // dominio EIP-712, usado en el hash de la firma
     {
@@ -70,7 +80,8 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
         aToken = _aToken;
 
         // Aprobacion maxima para que el Pool de Aave pueda tomar el activo cuando hagamos supply()
-        IERC20(address(_asset)).approve(_aavePool, type(uint256).max);
+        bool approved = IERC20(address(assetToken)).approve(_aavePool, type(uint256).max);
+        require(approved, "Aprobacion inicial fallida");
     }
 
     /**
@@ -97,6 +108,10 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
     ) external nonReentrant {
         require(block.timestamp <= deadline, "Senal expirada");
         require(!usedNonces[nonce], "Nonce ya usado");
+        require(
+            lastExecutionTime == 0 || block.timestamp >= lastExecutionTime + REBALANCE_COOLDOWN,
+            "Cooldown activo: espera antes de rebalancear de nuevo"
+        );
 
         bytes32 structHash = keccak256(
             abi.encode(SIGNAL_TYPEHASH, amountToSupply, amountToWithdraw, profitGenerated, nonce, deadline)
@@ -106,6 +121,7 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
         require(signer == aiAgent, "Firma invalida");
 
         usedNonces[nonce] = true;
+        lastExecutionTime = block.timestamp;
 
         if (profitGenerated > 0) {
             _collectPerformanceFee(profitGenerated);
@@ -116,7 +132,8 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
         }
 
         if (amountToWithdraw > 0) {
-            aavePool.withdraw(asset(), amountToWithdraw, address(this));
+            uint256 withdrawn = aavePool.withdraw(asset(), amountToWithdraw, address(this));
+            require(withdrawn >= amountToWithdraw, "Retiro de Aave incompleto");
         }
 
         emit SignalExecuted(amountToSupply, amountToWithdraw, profitGenerated, nonce);
@@ -138,6 +155,7 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
     function setPerformanceFee(uint256 _newFee) external onlyOwner {
         require(_newFee <= 2000, "Comision supera el maximo");
         performanceFee = _newFee;
+        emit PerformanceFeeUpdated(_newFee);
     }
 
     function setTreasury(address _newTreasury) external onlyOwner {
@@ -174,7 +192,7 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
     function _withdraw(
         address caller,
         address receiver,
-        address owner,
+        address shareOwner,
         uint256 assets,
         uint256 shares
     ) internal override nonReentrant {
@@ -184,9 +202,10 @@ contract ArbiAgentVault is ERC4626, Ownable, EIP712, ReentrancyGuard {
             uint256 shortfall = assets - liquid;
             // Si no hay suficiente aToken para cubrir el faltante, esto revierte
             // naturalmente (no deberia pasar si totalAssets/maxWithdraw estan bien calculados).
-            aavePool.withdraw(asset(), shortfall, address(this));
+            uint256 withdrawnFromAave = aavePool.withdraw(asset(), shortfall, address(this));
+            require(withdrawnFromAave >= shortfall, "Retiro de Aave incompleto");
         }
 
-        super._withdraw(caller, receiver, owner, assets, shares);
+        super._withdraw(caller, receiver, shareOwner, assets, shares);
     }
 }

@@ -40,8 +40,14 @@ class Settings:
         self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "")
         self.CHAIN_ID = int(os.getenv("CHAIN_ID", "421614"))
 
+        # Autenticacion interna para proteger endpoints sensibles (ej. /api/v1/rebalance)
+        self.INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
+
         # Validación preventiva para el desarrollador
         if not self.AI_AGENT_PRIVATE_KEY:
             print(" ADVERTENCIA: AI_AGENT_PRIVATE_KEY no está configurada en el archivo .env")
+
+        if not self.INTERNAL_API_KEY:
+            print(" ADVERTENCIA: INTERNAL_API_KEY no está configurada — /api/v1/rebalance quedará sin proteger")
 
 settings = Settings()

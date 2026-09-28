@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import datetime
 import logging
@@ -43,6 +43,18 @@ app.add_middleware(
 
 # Instancia global del agente IA
 agent = GeminiAgent()
+
+
+def verify_internal_key(x_api_key: str = Header(...)):
+    """
+    Proteccion basica para endpoints sensibles (ej. /api/v1/rebalance).
+    Fail-closed: si INTERNAL_API_KEY no esta configurada en el backend,
+    el endpoint queda bloqueado por defecto en vez de abierto.
+    """
+    if not settings.INTERNAL_API_KEY or x_api_key != settings.INTERNAL_API_KEY:
+        raise HTTPException(status_code=401, detail="API key invalida")
+    return True
+
 
 @app.get("/")
 def read_root():
@@ -105,7 +117,10 @@ async def get_current_strategy(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/rebalance", response_model=RebalanceResponse)
-async def execute_rebalance(payload: Optional[RebalanceRequest] = None):
+async def execute_rebalance(
+    payload: Optional[RebalanceRequest] = None,
+    _auth: bool = Depends(verify_internal_key)
+):
     req = payload or RebalanceRequest()
     enum_mode = normalize_mode(req.mode or "moderado")
     vault_addr = req.vault_address or settings.VAULT_CONTRACT_ADDRESS
