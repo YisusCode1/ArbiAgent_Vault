@@ -43,8 +43,9 @@ const parseExecutionError = (err: any): string => {
 export const useStrategy = () => {
   const [riskMode, setRiskModeState] = useState<RiskMode>(() => {
     if (typeof window !== 'undefined') {
+      // En esta versión solo está activo el modo moderado: ignora cualquier otro valor guardado.
       const saved = localStorage.getItem('arbiagent_risk_mode');
-      if (saved && (saved === 'conservador' || saved === 'moderado' || saved === 'agresivo')) {
+      if (saved === 'moderado') {
         return saved as RiskMode;
       }
     }
@@ -65,6 +66,9 @@ export const useStrategy = () => {
     mode_description: 'Balance optimo entre rendimiento y riesgo (ratio Sharpe).'
   });
 
+  // true solo cuando `strategy` viene del backend (no del valor inicial de relleno).
+  // Las vistas lo usan para no mostrar un APY inventado si el backend no responde.
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingModes, setIsLoadingModes] = useState<boolean>(false);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
@@ -90,6 +94,7 @@ export const useStrategy = () => {
     try {
       const data = await ApiService.getAIStrategy(targetMode);
       setStrategy(data);
+      setHasLoaded(true);
     } catch (err: any) {
       setFetchError(err.message || "Fallo de conexión crítico.");
     } finally {
@@ -97,12 +102,14 @@ export const useStrategy = () => {
     }
   }, [riskMode]);
 
+  // Cambiar el modo actualiza riskMode y el useEffect de abajo vuelve a pedir la estrategia,
+  // así que ya no se llama fetchStrategy aquí (antes se pedía dos veces).
   const setRiskMode = (newMode: RiskMode) => {
+    if (newMode !== 'moderado') return; // solo el modo moderado está activo
     setRiskModeState(newMode);
     if (typeof window !== 'undefined') {
       localStorage.setItem('arbiagent_risk_mode', newMode);
     }
-    fetchStrategy(newMode);
   };
 
   useEffect(() => {
@@ -155,6 +162,7 @@ export const useStrategy = () => {
     setRiskMode,
     riskModes,
     strategy,
+    hasLoaded,
     isLoading,
     isLoadingModes,
     isExecuting,

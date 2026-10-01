@@ -70,4 +70,5 @@ export interface TransactionRecord {
   status: string;
   hash: string;
   timestampMs?: number;
+  fullHash?: string;
 }

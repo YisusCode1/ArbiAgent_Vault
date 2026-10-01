@@ -3,7 +3,24 @@ import { useWeb3 } from './useWeb3';
 import { Web3Service } from '../services/web3Service';
 import { VaultMetrics, TransactionRecord } from '../types';
 
-export const CONVERSION_RATE = 1.0087; // 1 aaUSDC = 1.0087 USDC
+export const CONVERSION_RATE = 1.0087; // Solo como valor de respaldo: 1 aaUSDC ≈ 1.0087 USDC
+
+// Convierte errores técnicos de ethers/MetaMask en mensajes que una persona entienda.
+const friendlyError = (err: any, fallback: string): string => {
+  const code = err?.code;
+  const msg: string = err?.shortMessage || err?.message || '';
+  if (code === 'ACTION_REJECTED' || code === 4001 || /user rejected|user denied/i.test(msg)) {
+    return 'Cancelaste la transacción en tu wallet.';
+  }
+  if (code === 'INSUFFICIENT_FUNDS' || /insufficient funds/i.test(msg)) {
+    return 'No tienes suficiente ETH de testnet para pagar el gas.';
+  }
+  if (/transfer amount exceeds balance/i.test(msg)) {
+    return 'No tienes suficiente USDC para este depósito.';
+  }
+  console.error(err);
+  return fallback;
+};
 
 export const useVault = () => {
   const { wallet } = useWeb3();
@@ -15,6 +32,7 @@ export const useVault = () => {
     performanceFee: 10,
     assetSymbol: 'USDC'
   });
+  const [usdcBalance, setUsdcBalance] = useState<string>('0.00');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +41,13 @@ export const useVault = () => {
   const fetchMetrics = useCallback(async () => {
     try {
       if (wallet.isConnected && wallet.account) {
-        const totalAssets = await Web3Service.getVaultTotalAssets();
-        const userVaultData = await Web3Service.getUserShares(wallet.account);
-        const userPrincipal = await Web3Service.getUserPrincipal(wallet.account);
-        
+        const [totalAssets, userVaultData, userPrincipal, walletUsdc] = await Promise.all([
+          Web3Service.getVaultTotalAssets(),
+          Web3Service.getUserShares(wallet.account),
+          Web3Service.getUserPrincipal(wallet.account),
+          Web3Service.getUsdcBalance(wallet.account)
+        ]);
+
         setMetrics((prev) => ({
           ...prev,
           totalAssets,
@@ -34,11 +55,19 @@ export const useVault = () => {
           userAssets: userVaultData.assets,
           userPrincipal
         }));
+        setUsdcBalance(walletUsdc);
 
-        const userHistory = await Web3Service.fetchUserActivityFromArbiscan(wallet.account);
-        setHistory(userHistory);
+        // Movimientos del usuario + rebalanceos de la IA, ordenados del más reciente al más antiguo
+        const [userHistory, aiEvents] = await Promise.all([
+          Web3Service.fetchUserActivityFromArbiscan(wallet.account),
+          Web3Service.fetchOnChainEvents()
+        ]);
+        setHistory(
+          [...userHistory, ...aiEvents].sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0))
+        );
       } else {
         setHistory([]);
+        setUsdcBalance('0.00');
       }
     } catch (err: any) {
       console.error('Error fetching vault metrics:', err);
@@ -52,12 +81,18 @@ export const useVault = () => {
   const deposit = async (amountStr: string) => {
     const numAmount = parseFloat(amountStr);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Ingrese un monto valido mayor a cero.');
+      setError('Ingresa un monto mayor a cero.');
       return;
     }
 
     if (!wallet.isConnected) {
-      setError('Por favor conecta tu wallet para realizar un deposito.');
+      setError('Conecta tu wallet para depositar.');
+      return;
+    }
+
+    const walletUsdcNum = parseFloat(usdcBalance) || 0;
+    if (numAmount > walletUsdcNum) {
+      setError(`Tu saldo es de ${walletUsdcNum.toFixed(2)} USDC. Ingresa un monto menor o igual.`);
       return;
     }
 
@@ -66,29 +101,32 @@ export const useVault = () => {
     setTxHash(null);
 
     try {
+      await Web3Service.switchToArbitrumSepolia();
       const hash = await Web3Service.deposit(amountStr);
       setTxHash(hash);
-      
-      // Obtener datos reales de la blockchain, lo cual actualizará history con la info de Arbiscan
-      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
-      
+
+      // La tx ya está confirmada: actualiza saldos ahora y otra vez cuando el RPC indexe los eventos.
+      fetchMetrics();
+      setTimeout(() => fetchMetrics(), 3000);
+
       const addedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
         date: new Date().toLocaleString('es-ES'),
         type: 'DEPÓSITO',
         typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-        description: 'Deposito de USDC al vault',
-        detail: `Transacción enviada, esperando confirmación...`,
+        description: 'Depósito de USDC al vault',
+        detail: 'Transacción confirmada',
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `~${addedShares.toFixed(4)} aaUSDC`,
-        status: 'Pendiente',
+        status: 'Completado',
+        fullHash: hash,
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);
     } catch (err: any) {
-      setError(err?.message || 'Error al ejecutar el deposito.');
+      setError(friendlyError(err, 'No se pudo completar el depósito. Inténtalo de nuevo.'));
     } finally {
       setIsProcessing(false);
     }
@@ -97,18 +135,18 @@ export const useVault = () => {
   const withdraw = async (amountStr: string) => {
     const numAmount = parseFloat(amountStr);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Ingrese un monto valido mayor a cero.');
+      setError('Ingresa un monto mayor a cero.');
       return;
     }
 
     if (!wallet.isConnected) {
-      setError('Por favor conecta tu wallet para realizar un retiro.');
+      setError('Conecta tu wallet para retirar.');
       return;
     }
 
     const currentUserAssets = parseFloat(metrics.userAssets) || 0;
     if (numAmount > currentUserAssets) {
-      setError(`Monto supera tu posicion disponible de $${metrics.userAssets} USDC.`);
+      setError(`Tu posición disponible es de ${currentUserAssets.toFixed(2)} USDC.`);
       return;
     }
 
@@ -117,11 +155,12 @@ export const useVault = () => {
     setTxHash(null);
 
     try {
+      await Web3Service.switchToArbitrumSepolia();
       const hash = await Web3Service.withdraw(amountStr);
       setTxHash(hash);
-      
-      // Obtener datos reales de la blockchain
-      setTimeout(() => fetchMetrics(), 3000); // Dar un margen para que Arbiscan indexe
+
+      fetchMetrics();
+      setTimeout(() => fetchMetrics(), 3000);
 
       const removedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
@@ -129,17 +168,18 @@ export const useVault = () => {
         type: 'RETIRO',
         typeBadge: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
         description: 'Retiro de USDC del vault',
-        detail: `Transacción enviada, esperando confirmación...`,
+        detail: 'Transacción confirmada',
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${removedShares.toFixed(4)} aaUSDC`,
-        status: 'Pendiente',
+        status: 'Completado',
+        fullHash: hash,
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);
     } catch (err: any) {
-      setError(err?.message || 'Error al ejecutar el retiro.');
+      setError(friendlyError(err, 'No se pudo completar el retiro. Inténtalo de nuevo.'));
     } finally {
       setIsProcessing(false);
     }
@@ -147,6 +187,7 @@ export const useVault = () => {
 
   return {
     metrics,
+    usdcBalance,
     isProcessing,
     txHash,
     error,

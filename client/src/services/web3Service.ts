@@ -160,10 +160,41 @@ export class Web3Service {
     return receipt.hash;
   }
 
+  // Proveedor para lecturas: la wallet si está en Arbitrum Sepolia; si no, el RPC público.
+  private static async getReadProvider(): Promise<ethers.Provider> {
+    if (this.hasMetaMask()) {
+      try {
+        const chainIdHex: string = await window.ethereum.request({ method: 'eth_chainId' });
+        if (parseInt(chainIdHex, 16) === ARBITRUM_SEPOLIA_CHAIN_ID) {
+          return new ethers.BrowserProvider(window.ethereum);
+        }
+      } catch {
+        // Sin acceso a la wallet: se usa el RPC público
+      }
+    }
+    return new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+  }
+
+  public static async getUsdcBalance(account: string): Promise<string> {
+    try {
+      const provider = await this.getReadProvider();
+      // ABI mínimo inline, por si ERC20_ABI no incluye balanceOf
+      const usdc = new ethers.Contract(
+        USDC_CONTRACT_ADDRESS,
+        ['function balanceOf(address owner) view returns (uint256)'],
+        provider
+      );
+      const raw = await usdc.balanceOf(account);
+      return ethers.formatUnits(raw, 6);
+    } catch (err) {
+      console.error('Error fetching USDC balance:', err);
+      return '0.00';
+    }
+  }
+
   public static async getVaultTotalAssets(): Promise<string> {
     try {
-      const ethereum = this.hasMetaMask() ? window.ethereum : null;
-      const provider = ethereum ? new ethers.BrowserProvider(ethereum) : new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
+      const provider = await this.getReadProvider();
       const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
       const total = await vaultContract.totalAssets();
       return ethers.formatUnits(total, 6);
@@ -174,9 +205,8 @@ export class Web3Service {
 
   public static async getUserShares(account: string): Promise<{ shares: string; assets: string }> {
     try {
-      if (this.hasMetaMask() && account) {
-        const ethereum = window.ethereum;
-        const provider = new ethers.BrowserProvider(ethereum);
+      if (account) {
+        const provider = await this.getReadProvider();
         const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
 
         const shares = await vaultContract.balanceOf(account);
@@ -223,6 +253,7 @@ export class Web3Service {
     }
   }
 
+  // Rebalanceos ejecutados por la IA (evento SignalExecuted). Son del vault completo, no de un usuario.
   public static async fetchOnChainEvents(): Promise<TransactionRecord[]> {
     try {
       const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
@@ -231,19 +262,51 @@ export class Web3Service {
       const filter = vaultContract.filters.SignalExecuted();
       const events = await vaultContract.queryFilter(filter, DEPLOY_BLOCK);
 
-      if (events && events.length > 0) {
-        return events.map((ev: any) => ({
-          date: new Date().toLocaleString('es-ES'),
+      if (!events || events.length === 0) return [];
+
+      // Fecha real de cada evento: se toma del bloque (antes se usaba la fecha actual)
+      const blockNumbers = Array.from(new Set(events.map((ev: any) => ev.blockNumber as number)));
+      const blocks = await Promise.all(blockNumbers.map((b) => provider.getBlock(b)));
+      const blockTimes = new Map<number, number>();
+      blocks.forEach((b) => {
+        if (b) blockTimes.set(b.number, b.timestamp * 1000);
+      });
+
+      const toUsdc = (v: unknown): number => (typeof v === 'bigint' ? parseFloat(ethers.formatUnits(v, 6)) : 0);
+
+      const records: TransactionRecord[] = events.map((ev: any) => {
+        const ts = blockTimes.get(ev.blockNumber);
+        const supply = toUsdc(ev.args?.[0]);
+        const withdraw = toUsdc(ev.args?.[1]);
+
+        let detail = 'Señal firmada por el agente IA y verificada por el contrato';
+        let amount = '-';
+        if (supply > 0) {
+          amount = `${supply.toFixed(2)} USDC`;
+          detail = `La IA envió ${supply.toFixed(2)} USDC a Aave. Firma verificada on-chain.`;
+        } else if (withdraw > 0) {
+          amount = `${withdraw.toFixed(2)} USDC`;
+          detail = `La IA retiró ${withdraw.toFixed(2)} USDC de Aave. Firma verificada on-chain.`;
+        }
+
+        const txHash: string = ev.transactionHash;
+        return {
+          date: ts ? new Date(ts).toLocaleString('es-ES') : 'Fecha no disponible',
           type: 'IA',
           typeBadge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-          description: 'Ejecución de Señal EIP-712',
-          detail: `Rebalanceo on-chain confirmado`,
+          description: 'Rebalanceo ejecutado por la IA',
+          detail,
           protocol: 'Aave V3',
-          amount: `${ethers.formatUnits(ev.args[0], 6)} USDC`,
-          status: 'Completado (On-Chain)',
-          hash: ev.transactionHash ? `${ev.transactionHash.substring(0, 6)}...${ev.transactionHash.substring(ev.transactionHash.length - 4)}` : '-'
-        }));
-      }
+          amount,
+          status: 'Completado',
+          fullHash: txHash,
+          hash: txHash ? `${txHash.substring(0, 6)}...${txHash.substring(txHash.length - 4)}` : '-',
+          timestampMs: ts
+        } as TransactionRecord;
+      });
+
+      records.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+      return records;
     } catch (err) {
       console.error('Error fetching on-chain events:', err);
     }
@@ -274,7 +337,7 @@ export class Web3Service {
         if (type === 'DEPÓSITO') {
           amountUsdc = ethers.formatUnits(log.args[2], 6);
           amountShares = ethers.formatUnits(log.args[3], 6);
-          description = 'Deposito de USDC al vault';
+          description = 'Depósito de USDC al vault';
           detail = `Recibidas ~${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
           typeBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
         } else {
@@ -296,6 +359,7 @@ export class Web3Service {
           subAmount: type === 'DEPÓSITO' ? `~${parseFloat(amountShares).toFixed(4)} aaUSDC` : `${parseFloat(amountShares).toFixed(4)} aaUSDC`,
           status: 'Completado',
           hash: `${log.transactionHash.substring(0, 6)}...${log.transactionHash.substring(log.transactionHash.length - 4)}`,
+          fullHash: log.transactionHash,
           timestampMs: log.blockNumber // Usaremos el blockNumber temporalmente para guardar su referencia
         });
       };
