@@ -1,100 +1,132 @@
 import React from 'react';
-import { Database, Brain, Compass, Box, TrendingUp, ShieldCheck, Eye, Zap, Bot } from 'lucide-react';
+import { Database, Brain, Compass, FileSignature, TrendingUp, ShieldCheck, Eye, Zap, Bot, User, Cpu, FileCheck2, ArrowRight } from 'lucide-react';
 
-export const ComoFuncionaView: React.FC = () => {
-  const steps = [
-    {
-      num: 1,
-      title: 'Recoleccion de datos',
-      desc: 'Nuestro agente IA recopila y analiza datos on-chain y de mercado en tiempo real.',
-      icon: Database,
-    },
-    {
-      num: 2,
-      title: 'Analisis con IA',
-      desc: 'La IA evalua condiciones del mercado, riesgo y oportunidades usando modelos entrenados.',
-      icon: Brain,
-    },
-    {
-      num: 3,
-      title: 'Generacion de estrategia',
-      desc: 'Se genera una recomendacion (mantener, ajustar o rebalancear) con nivel de confianza.',
-      icon: Compass,
-    },
-    {
-      num: 4,
-      title: 'Ejecucion on-chain',
-      desc: 'Si la senal es aprobada, el contrato ejecuta la estrategia en Aave V3 de forma segura.',
-      icon: Box,
-    },
-    {
-      num: 5,
-      title: 'Monitoreo continuo',
-      desc: 'El sistema monitorea el rendimiento y vuelve a evaluar para maximizar tu retorno ajustado al riesgo.',
-      icon: TrendingUp,
-    },
-  ];
+interface ComoFuncionaViewProps {
+  // Opcional: si App.tsx lo pasa, se muestra el botón para empezar
+  onNavigate?: (tab: string) => void;
+}
 
-  const pillars = [
-    {
-      title: 'Seguridad primero',
-      desc: 'Smart contracts auditables y ejecucion controlada por el usuario.',
-      icon: ShieldCheck,
-    },
-    {
-      title: 'Transparencia total',
-      desc: 'Todas las acciones y datos son visibles en tiempo real.',
-      icon: Eye,
-    },
-    {
-      title: 'Eficiencia DeFi',
-      desc: 'Aprovechamos la infraestructura de Aave V3 en Arbitrum.',
-      icon: Zap,
-    },
-    {
-      title: 'IA responsable',
-      desc: 'Modelos entrenados para maximizar rendimiento con gestion de riesgo.',
-      icon: Bot,
-    },
-  ];
+const steps = [
+  {
+    num: 1,
+    title: 'Lectura de datos',
+    desc: 'El agente IA consulta datos de mercado de Aave V3: tasas, uso del pool y volatilidad.',
+    icon: Database,
+  },
+  {
+    num: 2,
+    title: 'Análisis con IA',
+    desc: 'Evalúa rendimiento y riesgo según el modo que elegiste: conservador, moderado o agresivo.',
+    icon: Brain,
+  },
+  {
+    num: 3,
+    title: 'Recomendación',
+    desc: 'Decide si depositar más en Aave, retirar o mantener, con su nivel de confianza.',
+    icon: Compass,
+  },
+  {
+    num: 4,
+    title: 'Firma y verificación',
+    desc: 'La IA firma la señal. Cualquiera puede enviarla, pero el contrato verifica la firma antes de mover fondos.',
+    icon: FileSignature,
+  },
+  {
+    num: 5,
+    title: 'Seguimiento',
+    desc: 'Tu valor actual, tu rendimiento y tu actividad se leen del contrato y se ven en Vault y Actividad.',
+    icon: TrendingUp,
+  },
+];
 
+const roles = [
+  {
+    who: 'Tú',
+    icon: User,
+    items: ['Depositas y retiras USDC cuando quieras', 'Eliges el modo de riesgo', 'Conservas tus shares del vault, que representan tu parte'],
+  },
+  {
+    who: 'La IA',
+    icon: Cpu,
+    items: ['Analiza el mercado', 'Recomienda depositar, retirar o mantener', 'Firma la señal; no puede mover fondos fuera del vault'],
+  },
+  {
+    who: 'El contrato',
+    icon: FileCheck2,
+    items: ['Verifica que la firma es del agente registrado', 'Rechaza señales repetidas o vencidas', 'Exige al menos 8 h entre rebalanceos', 'Solo mueve fondos entre el vault y Aave'],
+  },
+];
+
+const pillars = [
+  { title: 'Seguridad primero', desc: 'La IA solo puede mover fondos entre el vault y Aave. Tú retiras cuando quieras.', icon: ShieldCheck },
+  { title: 'Transparencia total', desc: 'Cada acción queda en la blockchain y puedes verla en el explorer.', icon: Eye },
+  { title: 'Eficiencia DeFi', desc: 'Usamos la infraestructura de Aave V3 en Arbitrum.', icon: Zap },
+  { title: 'IA con límites', desc: 'La IA solo recomienda y firma; el contrato decide si la señal es válida.', icon: Bot },
+];
+
+export const ComoFuncionaView: React.FC<ComoFuncionaViewProps> = ({ onNavigate }) => {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-10 text-white font-sans">
       <div>
-        <h2 className="text-3xl font-bold">¿Como funciona ArbiAgent?</h2>
-        <p className="text-xs text-slate-400 mt-1">IA + DeFi trabajando juntos para optimizar tu rendimiento en Arbitrum.</p>
+        <h2 className="text-3xl font-bold">¿Cómo funciona ArbiAgent?</h2>
+        <p className="text-xs text-slate-400 mt-1">La IA recomienda y firma, y el contrato verifica antes de ejecutar. Así se optimiza tu rendimiento en Arbitrum.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+      <ol className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {steps.map((step) => {
-          const IconComponent = step.icon;
+          const Icon = step.icon;
           return (
-            <div key={step.num} className="bg-[#0D1424] border border-cyan-900/20 p-5 rounded-xl flex flex-col justify-between relative group hover:border-cyan-500/40 transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-7 h-7 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 flex items-center justify-center font-bold text-xs">
-                    {step.num}
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-400/20">
-                    <IconComponent className="w-5 h-5" />
-                  </div>
+            <li key={step.num} className="bg-[#0D1424] border border-cyan-900/20 p-5 rounded-xl hover:border-cyan-500/40 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-7 h-7 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 flex items-center justify-center font-bold text-xs">
+                  {step.num}
                 </div>
-
-                <h3 className="font-bold text-sm text-white mb-2">{step.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">{step.desc}</p>
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-400/20">
+                  <Icon className="w-5 h-5" />
+                </div>
               </div>
-            </div>
+              <h3 className="font-bold text-sm text-white mb-2">{step.title}</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">{step.desc}</p>
+            </li>
           );
         })}
-      </div>
+      </ol>
+
+      <section>
+        <h3 className="text-xl font-bold mb-1">Quién hace qué</h3>
+        <p className="text-xs text-slate-400 mb-4">Ninguna parte tiene control total: por eso puedes confiar en el proceso.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {roles.map((r) => {
+            const Icon = r.icon;
+            return (
+              <div key={r.who} className="bg-[#0D1424] border border-cyan-900/20 p-5 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-400/20">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-white">{r.who}</h4>
+                </div>
+                <ul className="space-y-2 text-xs text-slate-300">
+                  {r.items.map((it) => (
+                    <li key={it} className="flex gap-2">
+                      <span className="text-cyan-400">•</span>
+                      <span>{it}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {pillars.map((p, idx) => {
-          const IconComp = p.icon;
+        {pillars.map((p) => {
+          const Icon = p.icon;
           return (
-            <div key={idx} className="bg-[#0D1424] border border-cyan-900/20 p-4 rounded-xl flex items-center gap-4">
+            <div key={p.title} className="bg-[#0D1424] border border-cyan-900/20 p-4 rounded-xl flex items-center gap-4">
               <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-400/20 flex-shrink-0">
-                <IconComp className="w-5 h-5" />
+                <Icon className="w-5 h-5" />
               </div>
               <div>
                 <h4 className="font-bold text-xs text-white mb-0.5">{p.title}</h4>
@@ -104,6 +136,18 @@ export const ComoFuncionaView: React.FC = () => {
           );
         })}
       </div>
+
+      {onNavigate && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => onNavigate('vault')}
+            className="inline-flex items-center gap-2 rounded-full bg-[#d4af5f] px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-[#d4af5f]/20 transition hover:bg-[#c9a94a]"
+          >
+            Ir al vault y empezar
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

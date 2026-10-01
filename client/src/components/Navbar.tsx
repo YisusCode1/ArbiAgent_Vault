@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ChevronDown, Wallet, LogOut, RefreshCw, AlertCircle, Menu, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Wallet, LogOut, RefreshCw, AlertCircle, Menu, X, Copy, Check } from 'lucide-react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { ARBITRUM_SEPOLIA_CHAIN_ID } from '../config/constants';
+import { shortAddress } from '../utils/format';
 
 const logoUrl = new URL('../assets/arbiagent-symbol.png', import.meta.url).href;
 
@@ -10,54 +11,95 @@ interface NavbarProps {
   setActiveTab: (tab: string) => void;
 }
 
+const navItems = [
+  { id: 'home', label: 'Inicio' },
+  { id: 'vault', label: 'Vault' },
+  { id: 'estrategia', label: 'Estrategia IA' },
+  { id: 'actividad', label: 'Actividad' },
+  { id: 'como-funciona', label: 'Cómo funciona' },
+];
+
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const { wallet, connectWallet, disconnectWallet, switchNetwork } = useWeb3();
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const walletMenuRef = useRef<HTMLDivElement>(null);
 
-  const navItems = [
-    { id: 'home', label: 'Inicio' },
-    { id: 'vault', label: 'Vault' },
-    { id: 'estrategia', label: 'Estrategia IA' },
-    { id: 'actividad', label: 'Actividad' },
-    { id: 'como-funciona', label: 'Cómo funciona' },
-  ];
-
-  const formatAddress = (addr: string | null) => {
-    if (!addr) return '';
-    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
-  };
-
+  const address = wallet.account ? shortAddress(wallet.account) : '';
   const isWrongNetwork = wallet.isConnected && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
+
+  // Cierra el menú de wallet al hacer clic fuera o al pulsar Escape
+  useEffect(() => {
+    if (!showDropdown) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (walletMenuRef.current && !walletMenuRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowDropdown(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showDropdown]);
 
   const handleNavigate = (tab: string) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
+    setShowDropdown(false);
   };
+
+  const copyAddress = async () => {
+    if (!wallet.account) return;
+    try {
+      await navigator.clipboard.writeText(wallet.account);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Sin permiso de portapapeles: no hacemos nada
+    }
+  };
+
+  const CopyButton = (
+    <button
+      onClick={copyAddress}
+      className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-slate-400 transition hover:text-cyan-300"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? 'Dirección copiada' : 'Copiar dirección'}
+    </button>
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#050811]/95 backdrop-blur-xl px-4 py-4 md:px-6">
       <div className="mx-auto">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('home')}>
+          <button
+            type="button"
+            onClick={() => handleNavigate('home')}
+            aria-label="Ir al inicio"
+            className="flex items-center gap-3 text-left"
+          >
             <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-[#d4af5f]/20 bg-[#071220] shadow-[0_0_30px_rgba(212,175,95,0.12)]">
-              <img
-                src={logoUrl}
-                alt="ArbiAgent symbol"
-                className="h-full w-full object-cover"
-              />
+              <img src={logoUrl} alt="ArbiAgent" className="h-full w-full object-cover" />
             </div>
             <div>
               <h1 className="font-semibold text-lg tracking-tight text-white">ArbiAgent</h1>
               <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 sm:text-xs">AI DEFI VAULT</p>
             </div>
-          </div>
+          </button>
 
           <nav className="hidden md:flex flex-wrap items-center gap-4 justify-center">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavigate(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
                 className={`text-sm font-medium transition ${
                   activeTab === item.id ? 'text-[#d4af5f]' : 'text-slate-400 hover:text-white'
                 }`}
@@ -88,15 +130,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               </div>
             )}
 
-            <div className="relative">
+            <div className="relative" ref={walletMenuRef}>
               {wallet.isConnected ? (
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
+                  aria-expanded={showDropdown}
+                  aria-haspopup="menu"
                   className="inline-flex items-center gap-2 rounded-full border border-cyan-500/10 bg-[#09111f] px-4 py-2 text-xs text-cyan-300 transition hover:bg-[#0f1a2d]"
                 >
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  {formatAddress(wallet.account)}
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                  {address}
+                  <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
                 </button>
               ) : (
                 <button
@@ -110,11 +154,19 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               )}
 
               {showDropdown && wallet.isConnected && (
-                <div className="absolute right-0 mt-2 w-72 rounded-3xl border border-slate-800 bg-[#08111f] p-3 shadow-[0_20px_40px_rgba(0,0,0,0.35)] text-sm text-slate-300">
+                <div
+                  role="menu"
+                  className="absolute right-0 mt-2 w-72 rounded-3xl border border-slate-800 bg-[#08111f] p-3 shadow-[0_20px_40px_rgba(0,0,0,0.35)] text-sm text-slate-300"
+                >
                   <div className="px-3 py-2 border-b border-slate-800/60">
                     <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Dirección activa</p>
-                    <p className="mt-2 text-sm text-white font-mono truncate">{wallet.account}</p>
-                    {wallet.balance && <p className="mt-2 text-xs text-cyan-300">Balance: {parseFloat(wallet.balance).toFixed(4)} ETH</p>}
+                    <p className="mt-2 text-sm text-white font-mono truncate" title={wallet.account ?? undefined}>
+                      {wallet.account}
+                    </p>
+                    {wallet.balance && (
+                      <p className="mt-2 text-xs text-cyan-300">Balance: {parseFloat(wallet.balance).toFixed(4)} ETH</p>
+                    )}
+                    {CopyButton}
                   </div>
                   <button
                     onClick={() => {
@@ -159,6 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                 <button
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
+                  aria-current={activeTab === item.id ? 'page' : undefined}
                   className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
                     activeTab === item.id
                       ? 'bg-[#d4af5f]/15 text-[#d4af5f] border border-[#d4af5f]/30'
@@ -171,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             </nav>
 
             <div className="space-y-3">
-              {isWrongNetwork ? (
+              {isWrongNetwork && (
                 <button
                   onClick={() => {
                     switchNetwork();
@@ -182,23 +235,31 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                   <AlertCircle className="h-4 w-4" />
                   Cambiar a Arbitrum Sepolia
                 </button>
-              ) : wallet.isConnected ? (
+              )}
+
+              {wallet.isConnected ? (
+                // En móvil el menú de wallet va dentro del panel: el desplegable de escritorio está oculto en pantallas pequeñas
                 <div className="rounded-2xl border border-cyan-500/20 bg-[#09111f] px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
+                  {!isWrongNetwork && (
                     <span className="inline-flex items-center gap-2 text-xs text-cyan-300">
                       <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                       Arbitrum Sepolia
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono">{formatAddress(wallet.account)}</span>
-                  </div>
+                  )}
+                  <p className="mt-2 text-sm text-white font-mono break-all">{wallet.account}</p>
+                  {wallet.balance && (
+                    <p className="mt-1 text-xs text-cyan-300">Balance: {parseFloat(wallet.balance).toFixed(4)} ETH</p>
+                  )}
+                  {CopyButton}
                   <button
                     onClick={() => {
-                      setShowDropdown(!showDropdown);
+                      disconnectWallet();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="mt-3 w-full rounded-full border border-cyan-500/10 bg-cyan-500/10 px-4 py-2 text-sm text-cyan-300"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-rose-500/10 px-4 py-2 text-xs text-rose-300 transition hover:bg-rose-500/20"
                   >
-                    Wallet
+                    <LogOut className="h-4 w-4" />
+                    Desconectar wallet
                   </button>
                 </div>
               ) : (

@@ -1,244 +1,291 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, Layers, Info, RefreshCw, AlertTriangle, CheckCircle, ArrowUpRight, Wallet, Activity } from 'lucide-react';
+import { Layers, Info, RefreshCw, AlertTriangle, CheckCircle, ArrowUpRight, Wallet, Activity } from 'lucide-react';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useVault, CONVERSION_RATE } from '../hooks/useVault';
-import { ARBITRUM_SEPOLIA_EXPLORER } from '../config/constants';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useStrategy } from '../hooks/useStrategy';
+import { ARBITRUM_SEPOLIA_EXPLORER, ARBITRUM_SEPOLIA_CHAIN_ID } from '../config/constants';
+import { formatUSD, formatPercent } from '../utils/format';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+const ACTION_LABELS: Record<string, string> = {
+  SUPPLY: 'Depositar en Aave',
+  WITHDRAW: 'Retirar de Aave',
+  HOLD: 'Mantener posición',
+};
+
+// El backend puede devolver 0.9 o 90: normaliza a porcentaje
+const toPercent = (v: number) => (v <= 1 ? v * 100 : v);
 
 export const VaultView: React.FC = () => {
-  const { wallet, connectWallet } = useWeb3();
-  const { metrics, isProcessing, txHash, error, deposit, withdraw } = useVault();
+  const { wallet, connectWallet, switchNetwork } = useWeb3();
+  const isWrongNetwork = wallet.isConnected && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
+  const { metrics, usdcBalance, isProcessing, txHash, error, deposit, withdraw } = useVault();
+  const { strategy, hasLoaded, riskMode, riskModes } = useStrategy();
+  const actionLabel = ACTION_LABELS[strategy.action] ?? strategy.action;
+  const confidencePct = Math.min(Math.round(toPercent(strategy.confidence)), 100);
+  const activeModeInfo = riskModes.find((m) => m.id === riskMode);
+  const maxExposurePct = activeModeInfo ? Math.round(toPercent(activeModeInfo.max_exposure)) : null;
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState<string>('');
+
+  const userAssetsNum = parseFloat(metrics.userAssets) || 0;
+  const userSharesNum = parseFloat(metrics.userShares) || 0;
+  const userPrincipalNum = parseFloat(metrics.userPrincipal) || 0;
+  const totalAssetsNum = parseFloat(metrics.totalAssets) || 0;
+  const usdcBalanceNum = parseFloat(usdcBalance) || 0;
+
+  // Lo máximo que puedes mover según la pestaña: saldo de tu wallet (depositar) o tu posición (retirar)
+  const availableNum = action === 'deposit' ? usdcBalanceNum : userAssetsNum;
+  const amountNum = parseFloat(amount) || 0;
+  const exceedsAvailable = amountNum > availableNum;
+
+  // Tasa real: USDC por share según tu posición on-chain.
+  // Si aún no tienes shares, cae a la constante como referencia.
+  const conversionRate = userSharesNum > 0 && userAssetsNum > 0 ? userAssetsNum / userSharesNum : CONVERSION_RATE;
+
+  const changeAction = (next: 'deposit' | 'withdraw') => {
+    setAction(next);
+    setAmount('');
+  };
 
   const handleAction = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
     if (action === 'deposit') {
       await deposit(amount);
-      setAmount('');
     } else {
       await withdraw(amount);
-      setAmount('');
     }
+    setAmount('');
   };
+
+  // Depositar: montos fijos. Retirar: porcentajes de tu posición.
+  const presets = action === 'deposit' ? ['10', '100', '500', '1000'] : ['25%', '50%', '75%'];
 
   const handlePreset = (preset: string) => {
-    if (preset === 'MAX') {
-      setAmount(metrics.userAssets);
-    } else if (preset === '50%') {
-      const half = (parseFloat(metrics.userAssets) / 2).toFixed(2);
-      setAmount(half);
+    if (preset.endsWith('%')) {
+      const pct = parseFloat(preset) / 100;
+      setAmount((userAssetsNum * pct).toFixed(2));
     } else {
-      setAmount(preset.replace(',', ''));
+      setAmount(preset);
     }
   };
 
-  const userAssetsNum = parseFloat(metrics.userAssets) || 0;
-  const userPrincipalNum = parseFloat(metrics.userPrincipal) || 0;
-  const totalAssetsNum = parseFloat(metrics.totalAssets) || 0;
-  
-  // PnL Logic exactly as requested
+  const handleMax = () => setAmount(action === 'deposit' ? usdcBalance : metrics.userAssets);
+
+  // PnL
   const pnl = userAssetsNum - userPrincipalNum;
-  const pnlFormatted = pnl >= 0 ? `+$${pnl.toFixed(6)}` : `-$${Math.abs(pnl).toFixed(6)}`;
   const isProfit = pnl >= 0;
+  const pnlFormatted = `${isProfit ? '+' : '-'}${formatUSD(Math.abs(pnl), 6)}`;
   const pnlPercent = userPrincipalNum > 0 ? (pnl / userPrincipalNum) * 100 : 0;
-  
+
   const pnlColor = isProfit ? 'text-emerald-400' : 'text-rose-400';
   const pnlBgColor = isProfit ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30';
 
-  // Area Chart Data
+  // Curva estimada entre el principal y el valor actual (no es historial on-chain)
   const chartData = useMemo(() => {
     if (userAssetsNum === 0) return [];
-    if (userAssetsNum > 1000000 || userPrincipalNum > 1000000) return []; // Guard: descarta valores anomalos
+    if (userAssetsNum > 1000000 || userPrincipalNum > 1000000) return []; // Guard: descarta valores anómalos
     const data = [];
-    let currentVal = userPrincipalNum || (userAssetsNum * 0.98); 
+    const currentVal = userPrincipalNum || userAssetsNum * 0.98;
     const step = (userAssetsNum - currentVal) / 6;
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       data.push({
         date: d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-        valor: i === 0 ? userAssetsNum : currentVal + (step * (6 - i))
+        valor: i === 0 ? userAssetsNum : currentVal + step * (6 - i),
       });
     }
     return data;
   }, [userAssetsNum, userPrincipalNum]);
 
-  // Donut Chart Data
-  const strategyData = [
-    { name: 'Aave V3 (Interés)', value: 85, color: '#0ea5e9' }, // Cyan/Blue
-    { name: 'Vault (Líquido)', value: 15, color: '#6366f1' } // Indigo
-  ];
-
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 text-zinc-100 font-sans">
-      {/* 1. Panel de Resumen (Tus Números) */}
+      {/* 1. Resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {/* Total Depositado (Principal) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
           <div className="flex items-center gap-2 text-sm text-zinc-400 mb-2">
             <Wallet className="w-4 h-4" />
-            <span>Total Depositado</span>
+            <span>Total depositado</span>
           </div>
-          <div className="text-3xl font-bold text-white">
-            ${userPrincipalNum.toFixed(2)}
-          </div>
-          <div className="text-xs text-zinc-500 mt-2">
-            Inversión original (Principal)
-          </div>
+          <div className="text-3xl font-bold text-white">{formatUSD(userPrincipalNum)}</div>
+          <div className="text-xs text-zinc-500 mt-2">Lo que has puesto en el vault (principal)</div>
         </div>
 
-        {/* Valor Actual */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between relative overflow-hidden">
           <div className="flex items-center gap-2 text-sm text-zinc-400 mb-2">
             <Layers className="w-4 h-4" />
-            <span>Valor Actual (aAVaul)</span>
+            <span>Valor actual</span>
           </div>
-          <div className="text-3xl font-bold text-white z-10">
-            ${userAssetsNum.toFixed(2)}
-          </div>
-          <div className="text-xs text-zinc-500 mt-2 z-10">
-            {metrics.userShares} shares on-chain
-          </div>
+          <div className="text-3xl font-bold text-white z-10">{formatUSD(userAssetsNum)}</div>
+          <div className="text-xs text-zinc-500 mt-2 z-10">{userSharesNum.toFixed(4)} shares on-chain</div>
           <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-4 translate-y-4">
             <Layers className="w-24 h-24" />
           </div>
         </div>
 
-        {/* PnL */}
         <div className={`bg-zinc-900 border ${isProfit ? 'border-emerald-900/50' : 'border-rose-900/50'} rounded-xl p-5 flex flex-col justify-between relative`}>
           <div className="flex items-center gap-2 text-sm text-zinc-400 mb-2">
             <Activity className="w-4 h-4" />
-            <span>Ganancia / Pérdida (PnL)</span>
+            <span>Ganancia / pérdida (PnL)</span>
           </div>
-          <div className={`text-3xl font-bold ${pnlColor}`}>
-            {pnlFormatted}
-          </div>
+          <div className={`text-3xl font-bold ${pnlColor}`}>{pnlFormatted}</div>
           <div className="flex items-center gap-2 mt-2">
             <span className={`text-xs px-2 py-0.5 rounded-full border ${pnlBgColor} ${pnlColor}`}>
-              {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(4)}%
+              {pnlPercent >= 0 ? '+' : ''}
+              {pnlPercent.toFixed(4)}%
             </span>
             <span className="text-xs text-zinc-500">Rendimiento neto</span>
           </div>
         </div>
       </div>
 
-      {/* 2. Gráficas e Interacción */}
+      {/* 2. Gráficas e interacción */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Rendimiento Histórico (AreaChart) y Estrategia (Donut) */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 h-[350px] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold">Rendimiento Histórico</span>
-              <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-950/40 px-3 py-1 rounded-full border border-blue-900/40">
-                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                <span>En vivo</span>
+              <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold">Evolución de tu posición</span>
+              <div
+                className="flex items-center gap-2 text-xs text-blue-400 bg-blue-950/40 px-3 py-1 rounded-full border border-blue-900/40 cursor-help"
+                title="Curva estimada entre tu depósito y tu valor actual. Tu valor actual se lee del contrato."
+              >
+                <Info className="w-3 h-3" />
+                <span>Estimado</span>
               </div>
             </div>
-            
+
             <div className="flex-1 w-full relative">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={isProfit ? '#34d399' : '#0ea5e9'} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={isProfit ? '#34d399' : '#0ea5e9'} stopOpacity={0}/>
+                        <stop offset="5%" stopColor={isProfit ? '#34d399' : '#0ea5e9'} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={isProfit ? '#34d399' : '#0ea5e9'} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="date" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${Number(val).toFixed(2)}`} domain={['dataMin - 0.5', 'dataMax + 0.5']} />
-                    <Tooltip 
+                    <YAxis
+                      stroke="#52525b"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => formatUSD(val)}
+                      domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                    />
+                    <Tooltip
                       contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
                       itemStyle={{ color: '#e4e4e7' }}
-                      formatter={(value: number) => [`$${value.toFixed(4)}`, 'Valor']}
+                      formatter={(value: number) => [formatUSD(value, 4), 'Valor']}
                     />
                     <Area type="monotone" dataKey="valor" stroke={isProfit ? '#34d399' : '#0ea5e9'} strokeWidth={3} fillOpacity={1} fill="url(#colorValor)" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600">
-                  <Activity className="w-8 h-8 mb-2 opacity-20" />
-                  <span className="text-sm">Realiza un depósito para ver tus métricas</span>
+                <div className="w-full h-full flex flex-col items-center justify-center text-zinc-500 text-center px-6">
+                  <Activity className="w-8 h-8 mb-2 opacity-30" />
+                  <span className="text-sm">
+                    {wallet.isConnected
+                      ? 'Aún no tienes depósitos. Haz tu primer depósito y verás aquí cómo crece tu posición.'
+                      : 'Conecta tu wallet para ver tu posición.'}
+                  </span>
                 </div>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col items-center justify-center h-[200px]">
-              <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold w-full text-left mb-2">Distribución de Estrategia</span>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={strategyData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={70}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {strategyData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                    itemStyle={{ color: '#e4e4e7' }}
-                    formatter={(value: number) => [`${value}%`, 'Alocación']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex gap-4 text-[10px] text-zinc-400 mt-2 w-full justify-center">
-                {strategyData.map((entry) => (
-                  <div key={entry.name} className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span>{entry.name}</span>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col min-h-[200px]">
+              <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold">Qué recomienda la IA ahora</span>
+              {hasLoaded ? (
+                <div className="mt-3 space-y-3">
+                  <div className="text-xl font-bold text-white">{actionLabel}</div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-500 mb-1">
+                      <span>Confianza</span>
+                      <span className="text-zinc-200 font-medium">{confidencePct}%</span>
+                    </div>
+                    <div className="w-full bg-zinc-800 rounded-full h-1.5">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-1.5 rounded-full"
+                        style={{ width: `${confidencePct}%` }}
+                      />
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-1.5 text-xs text-zinc-500">
+                    <div className="flex justify-between">
+                      <span>Volatilidad (7 días)</span>
+                      <span className="text-zinc-200">{strategy.volatility_7d.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Score ArbiAgent</span>
+                      <span className="text-zinc-200">{strategy.arbiagent_score.toFixed(1)} / 100</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Exposición máx. a Aave ({riskMode})</span>
+                      <span className="text-zinc-200">{maxExposurePct !== null ? `${maxExposurePct}%` : '—'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-500">
+                  La recomendación de la IA no está disponible ahora. Revisa que el backend esté activo.
+                </p>
+              )}
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between h-[200px]">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between min-h-[200px]">
               <div>
-                <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold">Salud del Vault (TVL)</span>
-                <div className="text-2xl font-bold text-white mt-2">${totalAssetsNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <span className="text-sm text-zinc-400 uppercase tracking-wider font-semibold">TVL del vault</span>
+                <div className="text-2xl font-bold text-white mt-2">{formatUSD(totalAssetsNum)}</div>
+                <div className="text-xs text-zinc-500 mt-1">Total depositado por todos los usuarios</div>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-xs text-zinc-500">
-                  <span>APY Actual (Aave V3)</span>
-                  <span className="text-emerald-400 font-bold">8.03%</span>
+                  <span>APY estimado por la IA</span>
+                  <span className="text-emerald-400 font-bold">
+                    {hasLoaded ? formatPercent(strategy.estimated_apy) : '—'}
+                  </span>
                 </div>
-                <div className="w-full bg-zinc-800 rounded-full h-1.5">
-                  <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 h-1.5 rounded-full" style={{ width: '85%' }}></div>
+                <div className="flex justify-between text-xs text-zinc-500">
+                  <span>Nivel de riesgo</span>
+                  <span className="text-zinc-200 font-medium">{hasLoaded ? strategy.risk_level : '—'}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Panel de Interacción (Depositar/Retirar) */}
+        {/* Panel de interacción */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between h-fit">
           <div>
+            {isWrongNetwork && (
+              <div className="mb-5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-between gap-3 text-xs text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>Tu wallet no está en Arbitrum Sepolia.</span>
+                </div>
+                <button
+                  onClick={switchNetwork}
+                  className="rounded-full border border-amber-500/30 px-3 py-1 font-medium hover:bg-amber-500/20 transition-colors whitespace-nowrap"
+                >
+                  Cambiar red
+                </button>
+              </div>
+            )}
+
             <div className="flex border-b border-zinc-800 pb-3 mb-6">
               <button
-                onClick={() => setAction('deposit')}
-                className={`flex-1 text-center font-medium text-sm pb-2 relative ${
-                  action === 'deposit' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
+                onClick={() => changeAction('deposit')}
+                className={`flex-1 text-center font-medium text-sm pb-2 relative ${action === 'deposit' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 Depositar
                 {action === 'deposit' && <span className="absolute bottom-[-13px] left-0 w-full h-[2px] bg-blue-500" />}
               </button>
               <button
-                onClick={() => setAction('withdraw')}
-                className={`flex-1 text-center font-medium text-sm pb-2 relative ${
-                  action === 'withdraw' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
+                onClick={() => changeAction('withdraw')}
+                className={`flex-1 text-center font-medium text-sm pb-2 relative ${action === 'withdraw' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 Retirar
                 {action === 'withdraw' && <span className="absolute bottom-[-13px] left-0 w-full h-[2px] bg-blue-500" />}
@@ -246,8 +293,10 @@ export const VaultView: React.FC = () => {
             </div>
 
             <div className="flex justify-between text-xs text-zinc-400 mb-2">
-              <span>{action === 'deposit' ? 'Monto a depositar' : 'Posicion disponible'}</span>
-              <span className="text-white font-mono">{action === 'deposit' ? wallet.balance : userAssetsNum.toFixed(2)} {action === 'deposit' ? 'ETH (testnet)' : 'USDC'}</span>
+              <span>{action === 'deposit' ? 'Monto a depositar' : 'Posición disponible'}</span>
+              <span className="text-white font-mono">
+                {wallet.isConnected ? `Saldo: ${availableNum.toFixed(2)} USDC` : ''}
+              </span>
             </div>
 
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex items-center justify-between mb-4 relative hover:border-zinc-700 transition-colors">
@@ -264,7 +313,7 @@ export const VaultView: React.FC = () => {
                   <span className="font-semibold">USDC</span>
                 </div>
                 <button
-                  onClick={() => handlePreset('MAX')}
+                  onClick={handleMax}
                   className="text-xs text-blue-400 font-medium px-2 py-1 bg-blue-500/10 rounded hover:bg-blue-500/20 transition-colors"
                 >
                   MAX
@@ -272,14 +321,25 @@ export const VaultView: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {['100', '500', '1,000', '50%'].map((preset) => (
+            {wallet.isConnected && exceedsAvailable && (
+              <p className="-mt-2 mb-4 text-xs text-rose-400">
+                {action === 'deposit' ? 'Supera tu saldo de USDC.' : 'Supera tu posición disponible.'}
+              </p>
+            )}
+            {wallet.isConnected && !isWrongNetwork && action === 'deposit' && usdcBalanceNum === 0 && (
+              <p className="-mt-2 mb-4 text-xs text-zinc-400">
+                No tienes USDC en Arbitrum Sepolia. Necesitas USDC de testnet para depositar.
+              </p>
+            )}
+
+            <div className={`grid ${presets.length === 4 ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-6`}>
+              {presets.map((preset) => (
                 <button
                   key={preset}
                   onClick={() => handlePreset(preset)}
                   className="bg-zinc-800/50 hover:bg-zinc-800 text-xs py-2 rounded-lg text-zinc-300 transition-colors"
                 >
-                  {preset}
+                  {preset.endsWith('%') ? preset : `$${preset}`}
                 </button>
               ))}
             </div>
@@ -288,12 +348,17 @@ export const VaultView: React.FC = () => {
               <div className="flex justify-between">
                 <span>Shares estimadas ({action === 'deposit' ? 'a recibir' : 'a quemar'})</span>
                 <span className="text-zinc-200 font-mono">
-                  {amount ? (parseFloat(amount) / CONVERSION_RATE).toFixed(4) : '0.0000'} aaUSDC
+                  {amount ? (parseFloat(amount) / conversionRate).toFixed(4) : '0.0000'} aaUSDC
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="flex items-center gap-1">Tasa de conversion <Info className="w-3 h-3" /></span>
-                <span className="text-zinc-200 font-mono">1 aaUSDC = {CONVERSION_RATE} USDC</span>
+                <span
+                  className="flex items-center gap-1 cursor-help"
+                  title="Cada share representa una parte del vault. Su valor sube a medida que el vault genera rendimiento."
+                >
+                  Tasa de conversión <Info className="w-3 h-3" />
+                </span>
+                <span className="text-zinc-200 font-mono">1 aaUSDC = {conversionRate.toFixed(4)} USDC</span>
               </div>
             </div>
 
@@ -330,26 +395,18 @@ export const VaultView: React.FC = () => {
                 disabled={wallet.isConnecting}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {wallet.isConnecting ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Wallet className="w-4 h-4" />
-                )}
+                {wallet.isConnecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
                 <span>{wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}</span>
               </button>
             ) : (
               <button
                 onClick={handleAction}
-                disabled={isProcessing || !amount || parseFloat(amount) <= 0}
+                disabled={isProcessing || !amount || amountNum <= 0 || exceedsAvailable}
                 className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-semibold py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isProcessing && <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />}
                 <span>
-                  {isProcessing
-                    ? 'Procesando en blockchain...'
-                    : action === 'deposit'
-                    ? 'Confirmar Depósito'
-                    : 'Confirmar Retiro'}
+                  {isProcessing ? 'Procesando en blockchain...' : action === 'deposit' ? 'Confirmar depósito' : 'Confirmar retiro'}
                 </span>
               </button>
             )}

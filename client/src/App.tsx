@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Web3Provider } from './context/Web3Context';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -11,6 +11,11 @@ import { ComoFuncionaView } from './components/ComoFuncionaView';
 export function AppContent() {
   const [activeTab, setActiveTab] = useState('home');
 
+  // Al cambiar de pestaña, vuelve al inicio de la página (antes se quedaba a media altura)
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [activeTab]);
+
   return (
     <div className="min-h-screen bg-[#050811] text-slate-100 font-sans antialiased flex flex-col">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -20,7 +25,7 @@ export function AppContent() {
         {activeTab === 'vault' && <VaultView />}
         {activeTab === 'estrategia' && <EstrategiaIAView />}
         {activeTab === 'actividad' && <ActividadView />}
-        {activeTab === 'como-funciona' && <ComoFuncionaView />}
+        {activeTab === 'como-funciona' && <ComoFuncionaView onNavigate={setActiveTab} />}
       </main>
 
       <Footer />

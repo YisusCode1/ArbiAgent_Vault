@@ -1,34 +1,52 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, ShieldCheck, Eye, Wallet, Zap, Cpu } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, Wallet, Zap, Info, Check } from 'lucide-react';
 import { useVault } from '../hooks/useVault';
 import { useWeb3 } from '../hooks/useWeb3';
+import { useStrategy } from '../hooks/useStrategy';
+import { formatUSD, formatPercent, shortAddress } from '../utils/format';
 
 interface HomeViewProps {
   onNavigate: (tab: string) => void;
 }
 
+// Cada tarjeta lleva a una sección real y su botón dice a dónde va.
 const worldCards = [
   {
     title: '01 · Portfolio',
     subtitle: 'Gestión inteligente',
     description: 'Un mundo donde tu wallet y la IA trabajan juntos para proteger y hacer crecer tu capital.',
+    cta: 'Ir al vault',
+    target: 'vault',
   },
   {
     title: '02 · Estrategia',
     subtitle: 'Optimización activa',
     description: 'Rebalanceo automático y evaluación constante de oportunidades en Arbitrum y Aave V3.',
+    cta: 'Ver estrategia IA',
+    target: 'estrategia',
   },
   {
     title: '03 · Transparencia',
     subtitle: 'Visibilidad total',
     description: 'Todos los datos de tu vault disponibles con claridad en cada sección.',
+    cta: 'Ver cómo funciona',
+    target: 'como-funciona',
   },
 ];
 
 export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
   const { wallet, connectWallet, disconnectWallet } = useWeb3();
   const { metrics } = useVault();
+  const { strategy, hasLoaded } = useStrategy();
+
+  const quickStart = [
+    { done: wallet.isConnected, text: 'Conecta tu wallet y verifica tu red Arbitrum Sepolia.' },
+    { done: false, text: 'Ingresa al vault y experimenta gráficos y métricas en tiempo real.' },
+    { done: false, text: 'Deposita y retira USDC con la IA alineada a tu perfil.' },
+  ];
+  // El primer paso pendiente se resalta como "siguiente acción".
+  const nextStep = quickStart.findIndex((s) => !s.done);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 text-slate-100">
@@ -56,6 +74,13 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
             <p className="max-w-2xl text-base leading-8 text-slate-400 sm:text-lg">
               Conecta tu wallet en Arbitrum Sepolia y empieza: deposita, sigue el rendimiento en tiempo real, y deja que la IA rebalancee entre USDC y Aave según tu perfil de riesgo.
             </p>
+            {/* Propuesta de confianza subida junto al hero */}
+            <p className="flex max-w-2xl items-start gap-3 rounded-2xl border border-[#d4af5f]/20 bg-[#d4af5f]/5 px-4 py-3 text-sm leading-6 text-slate-200">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#d4af5f]" />
+              <span>
+                La IA solo puede mover los fondos entre el vault y Aave, nunca a otra dirección. Cada decisión se firma y el contrato la verifica on-chain antes de ejecutarse.
+              </span>
+            </p>
           </motion.div>
 
           <motion.div
@@ -77,8 +102,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 <ShieldCheck className="h-5 w-5" />
                 <span className="text-xs uppercase tracking-[0.24em]">Seguridad</span>
               </div>
-              <p className="mt-4 text-lg font-semibold text-white">Tu wallet en control</p>
-              <p className="mt-3 text-sm leading-6 text-slate-400">Nunca cedes custodia de tus fondos. Cada decisión de la IA queda firmada y verificada on-chain antes de ejecutarse.</p>
+              <p className="mt-4 text-lg font-semibold text-white">La IA no toca tu wallet</p>
+              <p className="mt-3 text-sm leading-6 text-slate-400">Tus USDC quedan en el contrato del vault, no en manos de la IA. Cada decisión queda firmada y verificada on-chain antes de ejecutarse.</p>
             </div>
           </motion.div>
 
@@ -88,25 +113,22 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
             transition={{ duration: 0.6, delay: 0.25, ease: 'easeOut' }}
             className="grid gap-4 lg:grid-cols-3"
           >
-            {worldCards.map((card, index) => (
+            {worldCards.map((card) => (
               <motion.div
                 key={card.title}
                 whileHover={{ y: -8, scale: 1.01 }}
                 transition={{ duration: 0.25 }}
-                className="rounded-[32px] border border-white/10 bg-[#081220]/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.24)]"
+                className="flex flex-col rounded-[32px] border border-white/10 bg-[#081220]/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.24)]"
               >
                 <span className="text-xs uppercase tracking-[0.3em] text-slate-500">{card.title}</span>
                 <h2 className="mt-4 text-2xl font-semibold text-white">{card.subtitle}</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-400">{card.description}</p>
+                <p className="mt-3 flex-1 text-sm leading-6 text-slate-400">{card.description}</p>
                 <button
-                  onClick={() => {
-                    if (index === 0) onNavigate('vault');
-                    else if (index === 1) onNavigate('estrategia');
-                    else onNavigate('como-funciona');
-                  }}
-                  className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d4af5f]/20 bg-[#d4af5f]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af5f] transition hover:bg-[#d4af5f]/20"
+                  onClick={() => onNavigate(card.target)}
+                  className="mt-6 inline-flex items-center gap-2 self-start whitespace-nowrap rounded-full border border-[#d4af5f]/20 bg-[#d4af5f]/10 px-4 py-2 text-xs font-semibold text-[#d4af5f] transition hover:bg-[#d4af5f]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d4af5f]"
                 >
-                  Explorar mundo
+                  {card.cta}
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </motion.div>
             ))}
@@ -122,7 +144,14 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
           >
             <div className="flex items-center justify-between gap-4 text-xs uppercase tracking-[0.3em] text-slate-500">
               <span>Wallet</span>
-              <span className="rounded-full bg-[#d4af5f]/10 px-3 py-1 text-[#d4af5f]">Activo</span>
+              {/* El estado ahora refleja la conexión real */}
+              <span
+                className={`rounded-full px-3 py-1 ${
+                  wallet.isConnected ? 'bg-[#d4af5f]/10 text-[#d4af5f]' : 'bg-white/5 text-slate-400'
+                }`}
+              >
+                {wallet.isConnected ? 'Activo' : 'Inactivo'}
+              </span>
             </div>
             <div className="mt-6 space-y-4">
               <div>
@@ -131,7 +160,12 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Address</p>
-                <p className="mt-2 text-sm font-medium text-slate-100">{wallet.isConnected ? wallet.account : 'Sin wallet'}</p>
+                <p
+                  className="mt-2 break-all text-sm font-medium text-slate-100"
+                  title={wallet.isConnected ? wallet.account : undefined}
+                >
+                  {wallet.isConnected ? shortAddress(wallet.account) : 'Sin wallet'}
+                </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Balance</p>
@@ -150,11 +184,29 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
               <Sparkles className="h-5 w-5" />
               <span className="text-xs uppercase tracking-[0.3em]">Quick start</span>
             </div>
-            <div className="mt-6 space-y-4 text-sm leading-6 text-slate-400">
-              <p>1. Conecta tu wallet y verifica tu red Arbitrum Sepolia.</p>
-              <p>2. Ingresa al vault y experimenta gráficos y métricas en tiempo real.</p>
-              <p>3. Deposita y retira USDC con la IA alineada a tu perfil.</p>
-            </div>
+            <ol className="mt-6 space-y-4 text-sm leading-6">
+              {quickStart.map((step, i) => (
+                <li
+                  key={step.text}
+                  className={`flex items-start gap-3 ${
+                    step.done ? 'text-slate-500' : i === nextStep ? 'text-white' : 'text-slate-400'
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
+                      step.done
+                        ? 'border-[#d4af5f] bg-[#d4af5f] text-slate-950'
+                        : i === nextStep
+                        ? 'border-[#d4af5f] text-[#d4af5f]'
+                        : 'border-white/20 text-slate-500'
+                    }`}
+                  >
+                    {step.done ? <Check className="h-3 w-3" /> : i + 1}
+                  </span>
+                  <span className={step.done ? 'line-through decoration-slate-600' : ''}>{step.text}</span>
+                </li>
+              ))}
+            </ol>
           </motion.div>
 
           <motion.div
@@ -165,21 +217,26 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
           >
             <div className="flex items-center justify-between gap-3 text-slate-400">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em]">Tu vault</p>
-                <p className="mt-2 text-2xl font-semibold text-white">${metrics.userAssets}</p>
+                {/* Etiqueta distinta a "TVL": esto es TU posición, no el total del vault */}
+                <p className="text-xs uppercase tracking-[0.3em]">Tu posición</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{formatUSD(metrics.userAssets)}</p>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#d4af5f]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af5f]">
+              <div
+                className="inline-flex cursor-help items-center gap-2 rounded-full bg-[#d4af5f]/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#d4af5f]"
+                title="Tu nivel en ArbiAgent según el capital que tienes depositado. Bronce es el nivel inicial."
+              >
                 Bronce
+                <Info className="h-3.5 w-3.5" aria-label="Qué significa este nivel" />
               </div>
             </div>
             <div className="grid gap-3 rounded-[24px] border border-white/10 bg-[#0b1722]/80 p-4 text-sm text-slate-400">
               <div className="flex items-center justify-between text-white">
-                <span>TVL</span>
-                <span>${metrics.totalAssets}</span>
+                <span>TVL del vault</span>
+                <span>{formatUSD(metrics.totalAssets)}</span>
               </div>
               <div className="flex items-center justify-between text-white">
                 <span>Rendimiento</span>
-                <span>8.03% APY</span>
+                <span>{hasLoaded ? `${formatPercent(strategy.estimated_apy)} APY` : '—'}</span>
               </div>
             </div>
           </motion.div>
