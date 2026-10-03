@@ -127,7 +127,7 @@ export const VaultView: React.FC = () => {
         <div className={`bg-zinc-900 border ${isProfit ? 'border-emerald-900/50' : 'border-rose-900/50'} rounded-xl p-5 flex flex-col justify-between relative`}>
           <div className="flex items-center gap-2 text-sm text-zinc-400 mb-2">
             <Activity className="w-4 h-4" />
-            <span>Profit / loss (PnL)</span>
+            <span>Performance (PnL)</span>
           </div>
           <div className={`text-3xl font-bold ${pnlColor}`}>{pnlFormatted}</div>
           <div className="flex items-center gap-2 mt-2">
