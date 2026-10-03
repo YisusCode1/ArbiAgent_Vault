@@ -26,14 +26,14 @@ export class Web3Service {
 
   public static async connectWallet(): Promise<{ account: string; chainId: number; balance: string; isDemo: boolean }> {
     if (!this.hasMetaMask()) {
-      throw new Error('MetaMask no está instalado en tu navegador.');
+      throw new Error('MetaMask is not installed in your browser.');
     }
 
     const ethereum = window.ethereum;
     const accounts: string[] = await ethereum.request({ method: 'eth_requestAccounts' });
 
     if (!accounts || accounts.length === 0) {
-      throw new Error('No se seleccionó ninguna cuenta en MetaMask.');
+      throw new Error('No account was selected in MetaMask.');
     }
 
     const account = accounts[0];
@@ -78,7 +78,7 @@ export class Web3Service {
 
   public static async deposit(amountUsdc: string): Promise<string> {
     if (!this.hasMetaMask()) {
-      throw new Error('MetaMask es requerido para depositar.');
+      throw new Error('MetaMask is required to deposit.');
     }
 
     const ethereum = window.ethereum;
@@ -109,7 +109,7 @@ export class Web3Service {
 
   public static async withdraw(amountUsdc: string): Promise<string> {
     if (!this.hasMetaMask()) {
-      throw new Error('MetaMask es requerido para retirar.');
+      throw new Error('MetaMask is required to withdraw.');
     }
 
     const ethereum = window.ethereum;
@@ -132,7 +132,7 @@ export class Web3Service {
 
   public static async executeSignalOnChain(signalPayload: RebalanceSignalResponse): Promise<string> {
     if (!this.hasMetaMask()) {
-      throw new Error('MetaMask es requerido para ejecutar rebalanceo on-chain.');
+      throw new Error('MetaMask is required to execute an on-chain rebalance.');
     }
 
     const ethereum = window.ethereum;
@@ -279,26 +279,26 @@ export class Web3Service {
         const supply = toUsdc(ev.args?.[0]);
         const withdraw = toUsdc(ev.args?.[1]);
 
-        let detail = 'Señal firmada por el agente IA y verificada por el contrato';
+        let detail = 'Signal signed by the AI agent and verified by the contract';
         let amount = '-';
         if (supply > 0) {
           amount = `${supply.toFixed(2)} USDC`;
-          detail = `La IA envió ${supply.toFixed(2)} USDC a Aave. Firma verificada on-chain.`;
+          detail = `The AI supplied ${supply.toFixed(2)} USDC to Aave. Signature verified on-chain.`;
         } else if (withdraw > 0) {
           amount = `${withdraw.toFixed(2)} USDC`;
-          detail = `La IA retiró ${withdraw.toFixed(2)} USDC de Aave. Firma verificada on-chain.`;
+          detail = `The AI withdrew ${withdraw.toFixed(2)} USDC from Aave. Signature verified on-chain.`;
         }
 
         const txHash: string = ev.transactionHash;
         return {
-          date: ts ? new Date(ts).toLocaleString('es-ES') : 'Fecha no disponible',
-          type: 'IA',
+          date: ts ? new Date(ts).toLocaleString('en-US') : 'Date not available',
+          type: 'AI',
           typeBadge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-          description: 'Rebalanceo ejecutado por la IA',
+          description: 'Rebalance executed by the AI',
           detail,
           protocol: 'Aave V3',
           amount,
-          status: 'Completado',
+          status: 'Completed',
           fullHash: txHash,
           hash: txHash ? `${txHash.substring(0, 6)}...${txHash.substring(txHash.length - 4)}` : '-',
           timestampMs: ts
@@ -329,43 +329,43 @@ export class Web3Service {
       const records: TransactionRecord[] = [];
       const blocksToFetch = new Set<number>();
 
-      const processLog = (log: any, type: 'DEPÓSITO' | 'RETIRO') => {
+      const processLog = (log: any, type: 'DEPOSIT' | 'WITHDRAWAL') => {
         blocksToFetch.add(log.blockNumber);
         
         let amountUsdc, amountShares, description, detail, typeBadge;
         
-        if (type === 'DEPÓSITO') {
+        if (type === 'DEPOSIT') {
           amountUsdc = ethers.formatUnits(log.args[2], 6);
           amountShares = ethers.formatUnits(log.args[3], 6);
-          description = 'Depósito de USDC al vault';
-          detail = `Recibidas ~${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
+          description = 'USDC deposit to the vault';
+          detail = `Received ~${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
           typeBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
         } else {
           amountUsdc = ethers.formatUnits(log.args[3], 6);
           amountShares = ethers.formatUnits(log.args[4], 6);
-          description = 'Retiro de USDC del vault';
-          detail = `Quemadas ${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
+          description = 'USDC withdrawal from the vault';
+          detail = `Burned ${parseFloat(amountShares).toFixed(4)} aaUSDC shares`;
           typeBadge = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
         }
 
         records.push({
-          date: 'Cargando...', 
+          date: 'Loading...', 
           type,
           typeBadge,
           description,
           detail,
           protocol: 'Aave V3',
           amount: `${parseFloat(amountUsdc).toFixed(2)} USDC`,
-          subAmount: type === 'DEPÓSITO' ? `~${parseFloat(amountShares).toFixed(4)} aaUSDC` : `${parseFloat(amountShares).toFixed(4)} aaUSDC`,
-          status: 'Completado',
+          subAmount: type === 'DEPOSIT' ? `~${parseFloat(amountShares).toFixed(4)} aaUSDC` : `${parseFloat(amountShares).toFixed(4)} aaUSDC`,
+          status: 'Completed',
           hash: `${log.transactionHash.substring(0, 6)}...${log.transactionHash.substring(log.transactionHash.length - 4)}`,
           fullHash: log.transactionHash,
           timestampMs: log.blockNumber // Usaremos el blockNumber temporalmente para guardar su referencia
         });
       };
 
-      deposits.forEach(d => processLog(d, 'DEPÓSITO'));
-      withdrawals.forEach(w => processLog(w, 'RETIRO'));
+      deposits.forEach(d => processLog(d, 'DEPOSIT'));
+      withdrawals.forEach(w => processLog(w, 'WITHDRAWAL'));
 
       // Fetch timestamps
       const blockPromises = Array.from(blocksToFetch).map(b => provider.getBlock(b));
@@ -380,9 +380,9 @@ export class Web3Service {
         if (r.timestampMs && blockMap.has(r.timestampMs)) {
           const ts = blockMap.get(r.timestampMs);
           r.timestampMs = ts;
-          r.date = new Date(ts).toLocaleString('es-ES');
+          r.date = new Date(ts).toLocaleString('en-US');
         } else {
-          r.date = new Date().toLocaleString('es-ES');
+          r.date = new Date().toLocaleString('en-US');
         }
       });
 

@@ -33,7 +33,7 @@ export class ApiService {
     });
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.detail || `Error HTTP ${response.status}: No se pudo generar la señal de rebalanceo.`);
+      throw new Error(errData.detail || `HTTP error ${response.status}: Could not generate the rebalance signal.`);
     }
     return await response.json();
   }

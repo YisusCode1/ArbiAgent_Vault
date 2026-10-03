@@ -5,15 +5,15 @@ import { useWeb3 } from '../hooks/useWeb3';
 import { ARBITRUM_SEPOLIA_EXPLORER } from '../config/constants';
 
 const FILTERS = [
-  { id: 'all', label: 'Todos' },
-  { id: 'DEPÓSITO', label: 'Depósitos' },
-  { id: 'RETIRO', label: 'Retiros' },
-  { id: 'IA', label: 'Rebalanceos IA' },
+  { id: 'all', label: 'All' },
+  { id: 'DEPOSIT', label: 'Deposits' },
+  { id: 'WITHDRAWAL', label: 'Withdrawals' },
+  { id: 'AI', label: 'AI rebalances' },
 ];
 
 const statusStyle = (status: string) => {
-  if (status.startsWith('Completado')) return { text: 'text-emerald-400', dot: 'bg-emerald-400' };
-  if (status === 'Pendiente') return { text: 'text-amber-400', dot: 'bg-amber-400' };
+  if (status.startsWith('Completed')) return { text: 'text-emerald-400', dot: 'bg-emerald-400' };
+  if (status === 'Pending') return { text: 'text-amber-400', dot: 'bg-amber-400' };
   return { text: 'text-slate-400', dot: 'bg-slate-400' };
 };
 
@@ -36,12 +36,12 @@ export const ActividadView: React.FC = () => {
         return acc + (isNaN(val) ? 0 : val);
       }, 0);
 
-  const totalDeposits = sumByType('DEPÓSITO');
-  const totalWithdrawals = sumByType('RETIRO');
+  const totalDeposits = sumByType('DEPOSIT');
+  const totalWithdrawals = sumByType('WITHDRAWAL');
 
   const exportCSV = () => {
     if (history.length === 0) return;
-    const headers = ['Fecha', 'Tipo', 'Descripción', 'Protocolo', 'Monto', 'Estado', 'Tx hash'];
+    const headers = ['Date', 'Type', 'Description', 'Protocol', 'Amount', 'Status', 'Tx hash'];
     const rows = history.map((item) => [
       item.date,
       item.type,
@@ -57,7 +57,7 @@ export const ActividadView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'arbiagent_actividad.csv';
+    link.download = 'arbiagent_activity.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -67,34 +67,34 @@ export const ActividadView: React.FC = () => {
   const filteredHistory = history.filter((item) => filter === 'all' || item.type === filter);
 
   const emptyMessage = !wallet.isConnected
-    ? 'Conecta tu wallet para ver tu actividad.'
+    ? 'Connect your wallet to see your activity.'
     : history.length === 0
-    ? 'Aún no hay actividad. Cuando hagas un depósito o un retiro, o la IA rebalancee el vault, aparecerá aquí con su enlace al explorer.'
-    : 'No hay registros para este filtro.';
+    ? 'No activity yet. When you make a deposit or withdrawal, or the AI rebalances the vault, it will appear here with a link to the explorer.'
+    : 'No records for this filter.';
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 text-white font-sans">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Actividad reciente</h2>
-          <p className="text-xs text-slate-400">Tus depósitos y retiros, y los rebalanceos que la IA ejecutó en el vault, verificables en Arbitrum Sepolia.</p>
+          <h2 className="text-2xl font-bold">Recent activity</h2>
+          <p className="text-xs text-slate-400">Your deposits and withdrawals, and the rebalances the AI executed in the vault, verifiable on Arbitrum Sepolia.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full md:w-auto">
           <div className="bg-[#0D1424] border border-cyan-900/20 px-4 py-2 rounded-xl">
-            <div className="text-[10px] text-slate-400">Total de movimientos</div>
+            <div className="text-[10px] text-slate-400">Total transactions</div>
             <div className="text-lg font-bold">{history.length}</div>
-            <div className="text-[10px] text-slate-500">Incluye rebalanceos de la IA</div>
+            <div className="text-[10px] text-slate-500">Includes AI rebalances</div>
           </div>
           <div className="bg-[#0D1424] border border-cyan-900/20 px-4 py-2 rounded-xl">
-            <div className="text-[10px] text-slate-400">Depósitos totales</div>
+            <div className="text-[10px] text-slate-400">Total deposits</div>
             <div className="text-lg font-bold">{fmtUSDC(totalDeposits)}</div>
-            <div className="text-[10px] text-slate-500">Suma de tus depósitos</div>
+            <div className="text-[10px] text-slate-500">Sum of your deposits</div>
           </div>
           <div className="bg-[#0D1424] border border-cyan-900/20 px-4 py-2 rounded-xl">
-            <div className="text-[10px] text-slate-400">Retiros totales</div>
+            <div className="text-[10px] text-slate-400">Total withdrawals</div>
             <div className="text-lg font-bold">{fmtUSDC(totalWithdrawals)}</div>
-            <div className="text-[10px] text-slate-500">Suma de tus retiros</div>
+            <div className="text-[10px] text-slate-500">Sum of your withdrawals</div>
           </div>
         </div>
       </div>
@@ -123,7 +123,7 @@ export const ActividadView: React.FC = () => {
           className="flex items-center gap-2 bg-[#070B14] border border-slate-800 hover:border-cyan-500/40 px-3 py-1.5 rounded-lg text-xs text-slate-300 transition-colors w-full sm:w-auto justify-center disabled:opacity-40"
         >
           <Download className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Exportar CSV</span>
+          <span>Export CSV</span>
         </button>
       </div>
 
@@ -135,13 +135,13 @@ export const ActividadView: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-[#070B14] text-slate-400 border-b border-slate-800 uppercase tracking-wider">
                 <tr>
-                  <th className="p-4">Fecha y hora</th>
-                  <th className="p-4">Tipo</th>
-                  <th className="p-4">Descripción</th>
-                  <th className="p-4">Protocolo</th>
-                  <th className="p-4">Monto</th>
-                  <th className="p-4">Estado</th>
-                  <th className="p-4">Transacción</th>
+                  <th className="p-4">Date &amp; time</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Description</th>
+                  <th className="p-4">Protocol</th>
+                  <th className="p-4">Amount</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Transaction</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300 font-sans">

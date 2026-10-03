@@ -25,3 +25,17 @@ export function formatPercent(value: number | string | null | undefined): string
 export function shortAddress(address: string): string {
   return address.length > 12 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
 }
+
+// Etiquetas para mostrar: el backend devuelve identificadores en español.
+const RISK_LABELS: Record<string, string> = { Bajo: 'Low', Medio: 'Medium', Alto: 'High' };
+export const riskLabel = (level: string): string => RISK_LABELS[level] ?? level;
+
+const MODE_LABELS: Record<string, string> = { conservador: 'Conservative', moderado: 'Moderate', agresivo: 'Aggressive' };
+export const modeLabel = (id: string): string => MODE_LABELS[id] ?? id;
+
+const MODE_DESCRIPTIONS: Record<string, string> = {
+  conservador: 'Preserves capital with minimal volatility and low exposure.',
+  moderado: 'Balanced trade-off between yield and risk (Sharpe ratio).',
+  agresivo: 'Maximum yield, aiming to capture all available yield.',
+};
+export const modeDescription = (id: string, fallback = ''): string => MODE_DESCRIPTIONS[id] ?? fallback;

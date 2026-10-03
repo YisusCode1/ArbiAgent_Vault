@@ -13,10 +13,10 @@ export function Footer() {
 
         <div className="text-center space-y-1">
           <p className="text-xs text-slate-300">
-            Participando en Arbitrum Open House Singapore · Online Buildathon
+            Competing in Arbitrum Open House Singapore · Online Buildathon
           </p>
           <p className="text-xs text-slate-500">
-            Nacido en el EthLima Hackathon 2026 · Arbitrum Sepolia (testnet) · Sin valor monetario real
+            Born at EthLima Hackathon 2026 · Arbitrum Sepolia (testnet) · No real monetary value
           </p>
         </div>
 
@@ -35,7 +35,7 @@ export function Footer() {
             rel="noopener noreferrer"
             className={linkClass}
           >
-            Contrato del vault
+            Vault contract
           </a>
           <a href={ARBITRUM_SEPOLIA_EXPLORER} target="_blank" rel="noopener noreferrer" className={linkClass}>
             Arbiscan

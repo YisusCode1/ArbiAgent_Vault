@@ -10,13 +10,13 @@ const friendlyError = (err: any, fallback: string): string => {
   const code = err?.code;
   const msg: string = err?.shortMessage || err?.message || '';
   if (code === 'ACTION_REJECTED' || code === 4001 || /user rejected|user denied/i.test(msg)) {
-    return 'Cancelaste la transacción en tu wallet.';
+    return 'You cancelled the transaction in your wallet.';
   }
   if (code === 'INSUFFICIENT_FUNDS' || /insufficient funds/i.test(msg)) {
-    return 'No tienes suficiente ETH de testnet para pagar el gas.';
+    return 'You do not have enough testnet ETH to pay for gas.';
   }
   if (/transfer amount exceeds balance/i.test(msg)) {
-    return 'No tienes suficiente USDC para este depósito.';
+    return 'You do not have enough USDC for this deposit.';
   }
   console.error(err);
   return fallback;
@@ -81,18 +81,18 @@ export const useVault = () => {
   const deposit = async (amountStr: string) => {
     const numAmount = parseFloat(amountStr);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Ingresa un monto mayor a cero.');
+      setError('Enter an amount greater than zero.');
       return;
     }
 
     if (!wallet.isConnected) {
-      setError('Conecta tu wallet para depositar.');
+      setError('Connect your wallet to deposit.');
       return;
     }
 
     const walletUsdcNum = parseFloat(usdcBalance) || 0;
     if (numAmount > walletUsdcNum) {
-      setError(`Tu saldo es de ${walletUsdcNum.toFixed(2)} USDC. Ingresa un monto menor o igual.`);
+      setError(`Your balance is ${walletUsdcNum.toFixed(2)} USDC. Enter that amount or less.`);
       return;
     }
 
@@ -111,22 +111,22 @@ export const useVault = () => {
 
       const addedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
-        date: new Date().toLocaleString('es-ES'),
-        type: 'DEPÓSITO',
+        date: new Date().toLocaleString('en-US'),
+        type: 'DEPOSIT',
         typeBadge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-        description: 'Depósito de USDC al vault',
-        detail: 'Transacción confirmada',
+        description: 'USDC deposit to the vault',
+        detail: 'Transaction confirmed',
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `~${addedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        status: 'Completed',
         fullHash: hash,
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);
     } catch (err: any) {
-      setError(friendlyError(err, 'No se pudo completar el depósito. Inténtalo de nuevo.'));
+      setError(friendlyError(err, 'The deposit could not be completed. Please try again.'));
     } finally {
       setIsProcessing(false);
     }
@@ -135,18 +135,18 @@ export const useVault = () => {
   const withdraw = async (amountStr: string) => {
     const numAmount = parseFloat(amountStr);
     if (isNaN(numAmount) || numAmount <= 0) {
-      setError('Ingresa un monto mayor a cero.');
+      setError('Enter an amount greater than zero.');
       return;
     }
 
     if (!wallet.isConnected) {
-      setError('Conecta tu wallet para retirar.');
+      setError('Connect your wallet to withdraw.');
       return;
     }
 
     const currentUserAssets = parseFloat(metrics.userAssets) || 0;
     if (numAmount > currentUserAssets) {
-      setError(`Tu posición disponible es de ${currentUserAssets.toFixed(2)} USDC.`);
+      setError(`Your available position is ${currentUserAssets.toFixed(2)} USDC.`);
       return;
     }
 
@@ -164,22 +164,22 @@ export const useVault = () => {
 
       const removedShares = numAmount / CONVERSION_RATE;
       const newRecord: TransactionRecord = {
-        date: new Date().toLocaleString('es-ES'),
-        type: 'RETIRO',
+        date: new Date().toLocaleString('en-US'),
+        type: 'WITHDRAWAL',
         typeBadge: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-        description: 'Retiro de USDC del vault',
-        detail: 'Transacción confirmada',
+        description: 'USDC withdrawal from the vault',
+        detail: 'Transaction confirmed',
         protocol: 'Aave V3',
         amount: `${numAmount.toFixed(2)} USDC`,
         subAmount: `${removedShares.toFixed(4)} aaUSDC`,
-        status: 'Completado',
+        status: 'Completed',
         fullHash: hash,
         hash: hash ? `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}` : '-'
       };
 
       setHistory((prev) => [newRecord, ...prev]);
     } catch (err: any) {
-      setError(friendlyError(err, 'No se pudo completar el retiro. Inténtalo de nuevo.'));
+      setError(friendlyError(err, 'The withdrawal could not be completed. Please try again.'));
     } finally {
       setIsProcessing(false);
     }

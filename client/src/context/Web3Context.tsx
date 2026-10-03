@@ -44,7 +44,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isConnected: false,
         isConnecting: false,
         isDemo: false,
-        error: err?.message || 'Error al conectar la wallet MetaMask.',
+        error: err?.message || 'Failed to connect the MetaMask wallet.',
         balance: '0'
       });
       localStorage.removeItem('arbiagent_wallet_connected');
@@ -73,7 +73,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       setWallet((prev) => ({
         ...prev,
-        error: 'No se pudo cambiar a la red Arbitrum Sepolia.'
+        error: 'Could not switch to the Arbitrum Sepolia network.'
       }));
     }
   }, [wallet.account, connectWallet]);

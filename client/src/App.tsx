@@ -6,12 +6,11 @@ import { HomeView } from './components/HomeView';
 import { VaultView } from './components/VaultView';
 import { EstrategiaIAView } from './components/EstrategiaIAView';
 import { ActividadView } from './components/ActividadView';
-import { ComoFuncionaView } from './components/ComoFuncionaView';
 
 export function AppContent() {
   const [activeTab, setActiveTab] = useState('home');
 
-  // Al cambiar de pestaña, vuelve al inicio de la página (antes se quedaba a media altura)
+  // On tab change, scroll back to the top of the page
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [activeTab]);
@@ -25,7 +24,7 @@ export function AppContent() {
         {activeTab === 'vault' && <VaultView />}
         {activeTab === 'estrategia' && <EstrategiaIAView />}
         {activeTab === 'actividad' && <ActividadView />}
-        {activeTab === 'como-funciona' && <ComoFuncionaView onNavigate={setActiveTab} />}
+        
       </main>
 
       <Footer />

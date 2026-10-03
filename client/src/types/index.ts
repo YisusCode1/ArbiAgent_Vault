@@ -59,7 +59,7 @@ export interface VaultMetrics {
 
 export interface TransactionRecord {
   date: string;
-  type: 'IA' | 'EJECUCIÓN' | 'DEPÓSITO' | 'RETIRO' | 'RENDIMIENTO' | 'SISTEMA';
+  type: 'AI' | 'DEPOSIT' | 'WITHDRAWAL';
   typeBadge: string;
   description: string;
   detail: string;

@@ -12,11 +12,10 @@ interface NavbarProps {
 }
 
 const navItems = [
-  { id: 'home', label: 'Inicio' },
+  { id: 'home', label: 'Home' },
   { id: 'vault', label: 'Vault' },
-  { id: 'estrategia', label: 'Estrategia IA' },
-  { id: 'actividad', label: 'Actividad' },
-  { id: 'como-funciona', label: 'Cómo funciona' },
+  { id: 'estrategia', label: 'AI Strategy' },
+  { id: 'actividad', label: 'Activity' },  
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
@@ -71,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
       className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-slate-400 transition hover:text-cyan-300"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? 'Dirección copiada' : 'Copiar dirección'}
+      {copied ? 'Address copied' : 'Copy address'}
     </button>
   );
 
@@ -82,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           <button
             type="button"
             onClick={() => handleNavigate('home')}
-            aria-label="Ir al inicio"
+            aria-label="Go to home"
             className="flex items-center gap-3 text-left"
           >
             <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-[#d4af5f]/20 bg-[#071220] shadow-[0_0_30px_rgba(212,175,95,0.12)]">
@@ -116,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                 className="flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-300 transition hover:bg-amber-500/20"
               >
                 <AlertCircle className="h-4 w-4" />
-                Cambiar a Arbitrum Sepolia
+                Switch to Arbitrum Sepolia
               </button>
             ) : wallet.isConnected ? (
               <div className="inline-flex items-center gap-2 rounded-full bg-[#09111f] border border-cyan-500/10 px-4 py-2 text-xs text-cyan-300">
@@ -126,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             ) : (
               <div className="inline-flex items-center gap-2 rounded-full bg-[#09111f] border border-slate-800 px-4 py-2 text-xs text-slate-400">
                 <span className="h-2 w-2 rounded-full bg-slate-600" />
-                Sin conexión
+                Not connected
               </div>
             )}
 
@@ -149,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                   className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#4f6dbb] to-[#d4af5f] px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-[#d4af5f]/20 transition hover:brightness-110 disabled:opacity-50"
                 >
                   {wallet.isConnecting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-                  {wallet.isConnecting ? 'Conectando...' : 'Conectar Wallet'}
+                  {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
                 </button>
               )}
 
@@ -159,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                   className="absolute right-0 mt-2 w-72 rounded-3xl border border-slate-800 bg-[#08111f] p-3 shadow-[0_20px_40px_rgba(0,0,0,0.35)] text-sm text-slate-300"
                 >
                   <div className="px-3 py-2 border-b border-slate-800/60">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Dirección activa</p>
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Active address</p>
                     <p className="mt-2 text-sm text-white font-mono truncate" title={wallet.account ?? undefined}>
                       {wallet.account}
                     </p>
@@ -176,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                     className="mt-3 flex w-full items-center gap-2 rounded-2xl bg-cyan-500/10 px-3 py-2 text-left text-xs text-cyan-300 transition hover:bg-cyan-500/15"
                   >
                     <span className="h-2.5 w-2.5 rounded-full bg-cyan-400" />
-                    Reconectar / Cambiar wallet
+                    Reconnect / Switch wallet
                   </button>
                   <button
                     onClick={() => {
@@ -186,7 +185,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                     className="mt-2 flex w-full items-center gap-2 rounded-2xl bg-rose-500/10 px-3 py-2 text-left text-xs text-rose-300 transition hover:bg-rose-500/20"
                   >
                     <LogOut className="h-4 w-4" />
-                    Desconectar wallet
+                    Disconnect wallet
                   </button>
                 </div>
               )}
@@ -195,7 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
           <button
             type="button"
-            aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={isMobileMenuOpen}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 p-2 text-slate-100 transition hover:bg-white/10 md:hidden"
@@ -233,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                   className="flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-300 transition hover:bg-amber-500/20"
                 >
                   <AlertCircle className="h-4 w-4" />
-                  Cambiar a Arbitrum Sepolia
+                  Switch to Arbitrum Sepolia
                 </button>
               )}
 
@@ -259,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-rose-500/10 px-4 py-2 text-xs text-rose-300 transition hover:bg-rose-500/20"
                   >
                     <LogOut className="h-4 w-4" />
-                    Desconectar wallet
+                    Disconnect wallet
                   </button>
                 </div>
               ) : (
@@ -271,7 +270,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#4f6dbb] to-[#d4af5f] px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-[#d4af5f]/20"
                 >
                   <Wallet className="h-4 w-4" />
-                  Conectar Wallet
+                  Connect Wallet
                 </button>
               )}
             </div>

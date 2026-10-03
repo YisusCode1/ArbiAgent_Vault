@@ -6,7 +6,7 @@ import { StrategyResponse, RiskMode, RiskModeInfo } from '../types';
 // Convierte errores de ethers/MetaMask en mensajes claros para el usuario
 const parseExecutionError = (err: any): string => {
   if (err?.code === 'ACTION_REJECTED' || err?.code === 4001) {
-    return 'Transacción cancelada desde la wallet.';
+    return 'Transaction cancelled from your wallet.';
   }
 
   const raw: string = [
@@ -19,22 +19,22 @@ const parseExecutionError = (err: any): string => {
     .join(' | ');
 
   if (raw.includes('Cooldown activo')) {
-    return 'Cooldown activo: el vault solo permite un rebalanceo cada 8 horas. Intenta más tarde.';
+    return 'Cooldown active: the vault only allows one rebalance every 8 hours. Try again later.';
   }
   if (raw.includes('Nonce ya usado')) {
-    return 'Esta señal ya fue ejecutada. Genera una nueva.';
+    return 'This signal was already executed. Generate a new one.';
   }
   if (raw.includes('Senal expirada')) {
-    return 'La señal expiró. Vuelve a ejecutar la estrategia.';
+    return 'The signal expired. Run the strategy again.';
   }
   if (raw.includes('Firma invalida')) {
-    return 'El contrato rechazó la firma: no corresponde al agente IA registrado.';
+    return 'The contract rejected the signature: it does not match the registered AI agent.';
   }
   if (raw.includes('Retiro de Aave incompleto')) {
     return 'Aave no pudo devolver el monto solicitado. Intenta de nuevo.';
   }
   if (raw.includes('401') || raw.includes('422')) {
-    return 'El backend rechazó la petición (API key inválida o ausente).';
+    return 'The backend rejected the request (invalid or missing API key).';
   }
 
   return err?.shortMessage || err?.message || 'Error al ejecutar la estrategia.';
@@ -96,7 +96,7 @@ export const useStrategy = () => {
       setStrategy(data);
       setHasLoaded(true);
     } catch (err: any) {
-      setFetchError(err.message || "Fallo de conexión crítico.");
+      setFetchError(err.message || "Critical connection failure.");
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +130,7 @@ export const useStrategy = () => {
         setExecutionResult({
           success: true,
           txHash: '',
-          message: 'La IA recomienda mantener la posición actual: no hay movimientos que ejecutar on-chain.'
+          message: 'The AI recommends holding the current position: there are no moves to execute on-chain.'
         });
         return;
       }
@@ -142,7 +142,7 @@ export const useStrategy = () => {
       setExecutionResult({
         success: true,
         txHash,
-        message: 'Señal de la IA verificada y ejecutada on-chain.'
+        message: 'AI signal verified and executed on-chain.'
       });
 
       await fetchStrategy(riskMode);
