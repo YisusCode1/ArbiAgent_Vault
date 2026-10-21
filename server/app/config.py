@@ -37,7 +37,9 @@ class Settings:
         # Carga estricta desde el archivo .env (sin valores fallback con errores de formato)
         self.AI_AGENT_ADDRESS = os.getenv("AI_AGENT_ADDRESS", "")
         self.AI_AGENT_PRIVATE_KEY = os.getenv("AI_AGENT_PRIVATE_KEY", "")
-        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "")
+        self.VAULT_CONTRACT_ADDRESS = os.getenv("VAULT_CONTRACT_ADDRESS", "") # moderado
+        self.VAULT_ADDRESS_CONSERVADOR = os.getenv("VAULT_ADDRESS_CONSERVADOR", "")
+        self.VAULT_ADDRESS_AGRESIVO = os.getenv("VAULT_ADDRESS_AGRESIVO", "")
         self.CHAIN_ID = int(os.getenv("CHAIN_ID", "421614"))
 
         # Autenticacion interna para proteger endpoints sensibles (ej. /api/v1/rebalance)
@@ -49,5 +51,13 @@ class Settings:
 
         if not self.INTERNAL_API_KEY:
             print(" ADVERTENCIA: INTERNAL_API_KEY no está configurada — /api/v1/rebalance quedará sin proteger")
+        
+    def vault_for_mode(self, mode: str) -> str:
+        """Devuelve la dirección del vault que corresponde al modo (o '' si no está configurada)."""
+        return {
+            "moderado": self.VAULT_CONTRACT_ADDRESS,
+            "conservador": self.VAULT_ADDRESS_CONSERVADOR,
+            "agresivo": self.VAULT_ADDRESS_AGRESIVO,
+        }.get(mode, "") 
 
 settings = Settings()

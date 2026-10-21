@@ -275,6 +275,11 @@ export const VaultView: React.FC = () => {
               </div>
             )}
 
+            <div className="mb-4 flex items-center justify-between text-xs text-zinc-400">
+              <span>Vault</span>
+              <span className="rounded-full border border-zinc-700 px-2.5 py-0.5 font-medium text-zinc-200">{modeLabel(riskMode)}</span>
+            </div>
+
             <div className="flex border-b border-zinc-800 pb-3 mb-6">
               <button
                 onClick={() => changeAction('deposit')}

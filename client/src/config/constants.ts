@@ -28,3 +28,19 @@ export const ERC20_ABI = [
   'function decimals() external view returns (uint8)',
   'function symbol() external view returns (string)'
 ];
+// --- Un vault independiente por modo de operacion ---
+export const VAULT_ADDRESSES: Record<string, string> = {
+  conservador: '0xc4e031259cA7d2390408F10608fAE03982a47F39',
+  moderado: VAULT_CONTRACT_ADDRESS,
+  agresivo: '0x1D48956912c301C0Da67A10F3bC47BB2c8dEad0d'
+};
+
+// Bloque de despliegue de cada vault: desde ahi se leen sus eventos
+export const VAULT_DEPLOY_BLOCKS: Record<string, number> = {
+  conservador: 320542239,
+  moderado: 310400935,
+  agresivo: 320541918
+};
+
+export const vaultForMode = (mode: string): string => VAULT_ADDRESSES[mode] ?? VAULT_CONTRACT_ADDRESS;
+export const deployBlockForMode = (mode: string): number => VAULT_DEPLOY_BLOCKS[mode] ?? VAULT_DEPLOY_BLOCKS.moderado;

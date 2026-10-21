@@ -98,7 +98,7 @@ async def get_current_strategy(
     enum_mode = normalize_mode(mode)
     mode_info = get_risk_mode_info(enum_mode.value)
     try:
-        market_data = fetch_market_data()
+        market_data = fetch_market_data(settings.vault_for_mode(enum_mode.value))
         recommendation = await agent.get_strategy(enum_mode.value, market_data)
         return StrategyResponse(
             action=recommendation.action,
@@ -123,7 +123,16 @@ async def execute_rebalance(
 ):
     req = payload or RebalanceRequest()
     enum_mode = normalize_mode(req.mode or "moderado")
-    vault_addr = req.vault_address or settings.VAULT_CONTRACT_ADDRESS
+    
+    vault_addr = settings.vault_for_mode(enum_mode.value)
+    if not vault_addr:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Vault del modo {enum_mode.value} no configurado en el servidor."
+        )
+    if req.vault_address and req.vault_address.lower() != vault_addr.lower():
+        raise HTTPException(status_code=400, detail="vault_address no corresponde al modo indicado.")
+    
     try:
         market_data = fetch_market_data(vault_addr)
         recommendation = await agent.get_strategy(enum_mode.value, market_data)
@@ -161,7 +170,7 @@ async def execute_rebalance(
 def get_arbiagent_metrics():
     return ArbiAgentMetrics(
         ecosystem="Arbitrum Sepolia",
-        active_vaults=1,
+        active_vaults=3,
         total_volume_usd=0.0,
         health_score=98.2,
         arbitrum_network_status="Optimal"

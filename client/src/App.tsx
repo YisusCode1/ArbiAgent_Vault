@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Web3Provider } from './context/Web3Context';
+import { ModeProvider } from './context/ModeContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomeView } from './components/HomeView';
@@ -35,7 +36,9 @@ export function AppContent() {
 export function App() {
   return (
     <Web3Provider>
-      <AppContent />
+      <ModeProvider>
+        <AppContent />
+      </ModeProvider>
     </Web3Provider>
   );
 }

@@ -4,14 +4,13 @@ import {
   ARBITRUM_SEPOLIA_HEX_CHAIN_ID,
   ARBITRUM_SEPOLIA_RPC,
   ARBITRUM_SEPOLIA_EXPLORER,
-  VAULT_CONTRACT_ADDRESS,
   USDC_CONTRACT_ADDRESS,
+  vaultForMode,
+  deployBlockForMode,
   VAULT_ABI,
   ERC20_ABI
 } from '../config/constants';
 import { RebalanceSignalResponse, TransactionRecord } from '../types';
-
-const DEPLOY_BLOCK = 310400935;
 
 declare global {
   interface Window {
@@ -76,7 +75,8 @@ export class Web3Service {
     }
   }
 
-  public static async deposit(amountUsdc: string): Promise<string> {
+  public static async deposit(amountUsdc: string, mode: string = 'moderado'): Promise<string> {
+    const vaultAddress = vaultForMode(mode);
     if (!this.hasMetaMask()) {
       throw new Error('MetaMask is required to deposit.');
     }
@@ -87,7 +87,7 @@ export class Web3Service {
     const parsedAmount = ethers.parseUnits(amountUsdc, 6);
 
     const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, signer);
-    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+    const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, signer);
 
     const feeData = await provider.getFeeData();
     const txOverrides = {
@@ -95,10 +95,10 @@ export class Web3Service {
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
     };
 
-    const allowance = await usdcContract.allowance(await signer.getAddress(), VAULT_CONTRACT_ADDRESS);
+    const allowance = await usdcContract.allowance(await signer.getAddress(), vaultAddress);
 
     if (allowance < parsedAmount) {
-      const approveTx = await usdcContract.approve(VAULT_CONTRACT_ADDRESS, parsedAmount, txOverrides);
+      const approveTx = await usdcContract.approve(vaultAddress, parsedAmount, txOverrides);
       await approveTx.wait();
     }
 
@@ -107,7 +107,8 @@ export class Web3Service {
     return receipt.hash;
   }
 
-  public static async withdraw(amountUsdc: string): Promise<string> {
+  public static async withdraw(amountUsdc: string, mode: string = 'moderado'): Promise<string> {
+    const vaultAddress = vaultForMode(mode);
     if (!this.hasMetaMask()) {
       throw new Error('MetaMask is required to withdraw.');
     }
@@ -124,13 +125,14 @@ export class Web3Service {
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
     };
 
-    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+    const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, signer);
     const withdrawTx = await vaultContract.withdraw(parsedAmount, userAddress, userAddress, txOverrides);
     const receipt = await withdrawTx.wait();
     return receipt.hash;
   }
 
-  public static async executeSignalOnChain(signalPayload: RebalanceSignalResponse): Promise<string> {
+  public static async executeSignalOnChain(signalPayload: RebalanceSignalResponse, mode: string = 'moderado'): Promise<string> {
+    const vaultAddress = vaultForMode(mode);
     if (!this.hasMetaMask()) {
       throw new Error('MetaMask is required to execute an on-chain rebalance.');
     }
@@ -145,7 +147,7 @@ export class Web3Service {
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 120n) / 100n : undefined
     };
 
-    const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, signer);
+    const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, signer);
     const tx = await vaultContract.executeSignal(
       signalPayload.amountToSupply,
       signalPayload.amountToWithdraw,
@@ -192,10 +194,11 @@ export class Web3Service {
     }
   }
 
-  public static async getVaultTotalAssets(): Promise<string> {
+  public static async getVaultTotalAssets(mode: string = 'moderado'): Promise<string> {
+    const vaultAddress = vaultForMode(mode);
     try {
       const provider = await this.getReadProvider();
-      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+      const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
       const total = await vaultContract.totalAssets();
       return ethers.formatUnits(total, 6);
     } catch {
@@ -203,11 +206,12 @@ export class Web3Service {
     }
   }
 
-  public static async getUserShares(account: string): Promise<{ shares: string; assets: string }> {
+  public static async getUserShares(account: string, mode: string = 'moderado'): Promise<{ shares: string; assets: string }> {
+    const vaultAddress = vaultForMode(mode);
     try {
       if (account) {
         const provider = await this.getReadProvider();
-        const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+        const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
 
         const shares = await vaultContract.balanceOf(account);
         const assets = await vaultContract.convertToAssets(shares);
@@ -223,17 +227,19 @@ export class Web3Service {
     return { shares: '0.0000', assets: '0.00' };
   }
 
-  public static async getUserPrincipal(account: string): Promise<string> {
+  public static async getUserPrincipal(account: string, mode: string = 'moderado'): Promise<string> {
+    const vaultAddress = vaultForMode(mode);
+    const deployBlock = deployBlockForMode(mode);
     try {
       const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
-      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+      const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
 
       const depositFilter = vaultContract.filters.Deposit(null, account);
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       // Para Hackathon buscamos en los ultimos bloques
-      const deposits = await vaultContract.queryFilter(depositFilter, DEPLOY_BLOCK);
-      const withdrawals = await vaultContract.queryFilter(withdrawFilter, DEPLOY_BLOCK);
+      const deposits = await vaultContract.queryFilter(depositFilter, deployBlock);
+      const withdrawals = await vaultContract.queryFilter(withdrawFilter, deployBlock);
 
       let totalDeposited = 0n;
       for (const d of deposits) {
@@ -254,13 +260,15 @@ export class Web3Service {
   }
 
   // Rebalanceos ejecutados por la IA (evento SignalExecuted). Son del vault completo, no de un usuario.
-  public static async fetchOnChainEvents(): Promise<TransactionRecord[]> {
+  public static async fetchOnChainEvents(mode: string = 'moderado'): Promise<TransactionRecord[]> {
+    const vaultAddress = vaultForMode(mode);
+    const deployBlock = deployBlockForMode(mode);
     try {
       const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
-      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+      const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
 
       const filter = vaultContract.filters.SignalExecuted();
-      const events = await vaultContract.queryFilter(filter, DEPLOY_BLOCK);
+      const events = await vaultContract.queryFilter(filter, deployBlock);
 
       if (!events || events.length === 0) return [];
 
@@ -313,17 +321,19 @@ export class Web3Service {
     return [];
   }
 
-  public static async fetchUserActivityFromArbiscan(account: string): Promise<TransactionRecord[]> {
+  public static async fetchUserActivityFromArbiscan(account: string, mode: string = 'moderado'): Promise<TransactionRecord[]> {
+    const vaultAddress = vaultForMode(mode);
+    const deployBlock = deployBlockForMode(mode);
     try {
       const provider = new ethers.JsonRpcProvider(ARBITRUM_SEPOLIA_RPC);
-      const vaultContract = new ethers.Contract(VAULT_CONTRACT_ADDRESS, VAULT_ABI, provider);
+      const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
 
       const depositFilter = vaultContract.filters.Deposit(null, account);
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       const [deposits, withdrawals] = await Promise.all([
-        vaultContract.queryFilter(depositFilter, DEPLOY_BLOCK),
-        vaultContract.queryFilter(withdrawFilter, DEPLOY_BLOCK)
+        vaultContract.queryFilter(depositFilter, deployBlock),
+        vaultContract.queryFilter(withdrawFilter, deployBlock)
       ]);
 
       const records: TransactionRecord[] = [];

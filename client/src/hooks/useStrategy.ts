@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiService } from '../services/apiService';
 import { Web3Service } from '../services/web3Service';
+import { useMode } from '../context/ModeContext';
 import { StrategyResponse, RiskMode, RiskModeInfo } from '../types';
 
+// Cooldown on-chain de cada vault (debe coincidir con los contratos)
+const COOLDOWN_HOURS: Record<string, number> = { conservador: 24, moderado: 8, agresivo: 2 };
+
 // Convierte errores de ethers/MetaMask en mensajes claros para el usuario
-const parseExecutionError = (err: any): string => {
+const parseExecutionError = (err: any, mode: string): string => {
   if (err?.code === 'ACTION_REJECTED' || err?.code === 4001) {
     return 'Transaction cancelled from your wallet.';
   }
@@ -19,7 +23,7 @@ const parseExecutionError = (err: any): string => {
     .join(' | ');
 
   if (raw.includes('Cooldown activo')) {
-    return 'Cooldown active: the vault only allows one rebalance every 8 hours. Try again later.';
+    return `Cooldown active: this vault only allows one rebalance every ${COOLDOWN_HOURS[mode] ?? 8} hours. Try again later.`;
   }
   if (raw.includes('Nonce ya usado')) {
     return 'This signal was already executed. Generate a new one.';
@@ -31,26 +35,18 @@ const parseExecutionError = (err: any): string => {
     return 'The contract rejected the signature: it does not match the registered AI agent.';
   }
   if (raw.includes('Retiro de Aave incompleto')) {
-    return 'Aave no pudo devolver el monto solicitado. Intenta de nuevo.';
+    return 'Aave could not return the requested amount. Please try again.';
   }
   if (raw.includes('401') || raw.includes('422')) {
     return 'The backend rejected the request (invalid or missing API key).';
   }
 
-  return err?.shortMessage || err?.message || 'Error al ejecutar la estrategia.';
+  return err?.shortMessage || err?.message || 'Failed to execute the strategy.';
 };
 
 export const useStrategy = () => {
-  const [riskMode, setRiskModeState] = useState<RiskMode>(() => {
-    if (typeof window !== 'undefined') {
-      // En esta versión solo está activo el modo moderado: ignora cualquier otro valor guardado.
-      const saved = localStorage.getItem('arbiagent_risk_mode');
-      if (saved === 'moderado') {
-        return saved as RiskMode;
-      }
-    }
-    return 'moderado';
-  });
+  // El modo elegido es global (ModeContext): todas las pestañas apuntan al mismo vault
+  const { mode: riskMode, setMode: setRiskMode } = useMode();
 
   const [riskModes, setRiskModes] = useState<RiskModeInfo[]>([]);
   const [strategy, setStrategy] = useState<StrategyResponse>({
@@ -102,18 +98,9 @@ export const useStrategy = () => {
     }
   }, [riskMode]);
 
-  // Cambiar el modo actualiza riskMode y el useEffect de abajo vuelve a pedir la estrategia,
-  // así que ya no se llama fetchStrategy aquí (antes se pedía dos veces).
-  const setRiskMode = (newMode: RiskMode) => {
-    if (newMode !== 'moderado') return; // solo el modo moderado está activo
-    setRiskModeState(newMode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('arbiagent_risk_mode', newMode);
-    }
-  };
-
   useEffect(() => {
     fetchRiskModes();
+    setHasLoaded(false); // al cambiar de modo no se muestra la estrategia del anterior
     fetchStrategy(riskMode);
   }, [fetchRiskModes, fetchStrategy, riskMode]);
 
@@ -137,7 +124,7 @@ export const useStrategy = () => {
 
       // 3. La wallet del usuario envia executeSignal() al vault; el contrato verifica la firma
       await Web3Service.switchToArbitrumSepolia();
-      const txHash = await Web3Service.executeSignalOnChain(signal);
+      const txHash = await Web3Service.executeSignalOnChain(signal, riskMode);
 
       setExecutionResult({
         success: true,
@@ -150,7 +137,7 @@ export const useStrategy = () => {
       setExecutionResult({
         success: false,
         txHash: '',
-        message: parseExecutionError(err)
+        message: parseExecutionError(err, riskMode)
       });
     } finally {
       setIsExecuting(false);

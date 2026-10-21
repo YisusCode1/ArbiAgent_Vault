@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWeb3 } from './useWeb3';
 import { Web3Service } from '../services/web3Service';
+import { useMode } from '../context/ModeContext';
 import { VaultMetrics, TransactionRecord } from '../types';
 
 export const CONVERSION_RATE = 1.0087; // Solo como valor de respaldo: 1 aaUSDC ≈ 1.0087 USDC
@@ -24,6 +25,7 @@ const friendlyError = (err: any, fallback: string): string => {
 
 export const useVault = () => {
   const { wallet } = useWeb3();
+  const { mode } = useMode();
   const [metrics, setMetrics] = useState<VaultMetrics>({
     totalAssets: '0.00',
     userShares: '0.0000',
@@ -42,9 +44,9 @@ export const useVault = () => {
     try {
       if (wallet.isConnected && wallet.account) {
         const [totalAssets, userVaultData, userPrincipal, walletUsdc] = await Promise.all([
-          Web3Service.getVaultTotalAssets(),
-          Web3Service.getUserShares(wallet.account),
-          Web3Service.getUserPrincipal(wallet.account),
+          Web3Service.getVaultTotalAssets(mode),
+          Web3Service.getUserShares(wallet.account, mode),
+          Web3Service.getUserPrincipal(wallet.account, mode),
           Web3Service.getUsdcBalance(wallet.account)
         ]);
 
@@ -59,8 +61,8 @@ export const useVault = () => {
 
         // Movimientos del usuario + rebalanceos de la IA, ordenados del más reciente al más antiguo
         const [userHistory, aiEvents] = await Promise.all([
-          Web3Service.fetchUserActivityFromArbiscan(wallet.account),
-          Web3Service.fetchOnChainEvents()
+          Web3Service.fetchUserActivityFromArbiscan(wallet.account, mode),
+          Web3Service.fetchOnChainEvents(mode)
         ]);
         setHistory(
           [...userHistory, ...aiEvents].sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0))
@@ -72,9 +74,11 @@ export const useVault = () => {
     } catch (err: any) {
       console.error('Error fetching vault metrics:', err);
     }
-  }, [wallet.account, wallet.isConnected]);
+  }, [wallet.account, wallet.isConnected, mode]);
 
   useEffect(() => {
+    // Al cambiar de modo no se muestran los numeros del vault anterior
+    setMetrics((prev) => ({ ...prev, totalAssets: '0.00', userShares: '0.0000', userAssets: '0.00', userPrincipal: '0.00' }));
     fetchMetrics();
   }, [fetchMetrics]);
 
@@ -102,7 +106,7 @@ export const useVault = () => {
 
     try {
       await Web3Service.switchToArbitrumSepolia();
-      const hash = await Web3Service.deposit(amountStr);
+      const hash = await Web3Service.deposit(amountStr, mode);
       setTxHash(hash);
 
       // La tx ya está confirmada: actualiza saldos ahora y otra vez cuando el RPC indexe los eventos.
@@ -156,7 +160,7 @@ export const useVault = () => {
 
     try {
       await Web3Service.switchToArbitrumSepolia();
-      const hash = await Web3Service.withdraw(amountStr);
+      const hash = await Web3Service.withdraw(amountStr, mode);
       setTxHash(hash);
 
       fetchMetrics();

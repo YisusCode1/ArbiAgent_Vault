@@ -40,9 +40,6 @@ const ACTION_TITLES: Record<string, string> = {
   WITHDRAW: 'Move part of the capital to reserve',
 };
 
-// En esta versión del buildathon solo el modo Moderado está activo
-const ENABLED_MODE: RiskMode = 'moderado';
-
 // El contrato exige este mínimo entre rebalanceos, sea cual sea el modo (REBALANCE_COOLDOWN = 8 hours)
 const CONTRACT_COOLDOWN_HOURS = 8;
 
@@ -109,7 +106,7 @@ export const EstrategiaIAView: React.FC = () => {
             <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">AI agent settings</span>
             <h2 className="text-2xl font-bold text-white mt-0.5">AI operating mode</h2>
             <p className="text-xs text-slate-400 mt-1">
-              Only Moderate mode is active in this version. The other profiles are coming soon.
+              Each mode is a separate vault with its own funds, limits and cooldown. Choosing a mode shows that vault.
             </p>
           </div>
           {isLoading && (
@@ -123,7 +120,7 @@ export const EstrategiaIAView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {modesToRender.map((modeItem) => {
             const isSelected = riskMode === modeItem.id;
-            const isDisabled = modeItem.id !== ENABLED_MODE;
+            const isDisabled = false; // los tres modos estan activos
             const style = modeStyle(modeItem.id);
             return (
               <div
