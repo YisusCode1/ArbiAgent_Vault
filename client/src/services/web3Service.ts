@@ -227,6 +227,23 @@ export class Web3Service {
     return { shares: '0.0000', assets: '0.00' };
   }
 
+  // Consulta eventos por tramos: el RPC público rechaza rangos de más de 10M de bloques
+  private static async queryChunked(
+    contract: ethers.Contract,
+    filter: any,
+    fromBlock: number,
+    provider: ethers.Provider,
+    chunk: number = 5_000_000
+  ): Promise<any[]> {
+    const latest = await provider.getBlockNumber();
+    const out: any[] = [];
+    for (let start = fromBlock; start <= latest; start += chunk) {
+      const end = Math.min(start + chunk - 1, latest);
+      out.push(...(await contract.queryFilter(filter, start, end)));
+    }
+    return out;
+  }
+
   public static async getUserPrincipal(account: string, mode: string = 'moderado'): Promise<string> {
     const vaultAddress = vaultForMode(mode);
     const deployBlock = deployBlockForMode(mode);
@@ -238,8 +255,8 @@ export class Web3Service {
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       // Para Hackathon buscamos en los ultimos bloques
-      const deposits = await vaultContract.queryFilter(depositFilter, deployBlock);
-      const withdrawals = await vaultContract.queryFilter(withdrawFilter, deployBlock);
+      const deposits = await this.queryChunked(vaultContract, depositFilter, deployBlock, provider);
+      const withdrawals = await this.queryChunked(vaultContract, withdrawFilter, deployBlock, provider);
 
       let totalDeposited = 0n;
       for (const d of deposits) {
@@ -268,7 +285,7 @@ export class Web3Service {
       const vaultContract = new ethers.Contract(vaultAddress, VAULT_ABI, provider);
 
       const filter = vaultContract.filters.SignalExecuted();
-      const events = await vaultContract.queryFilter(filter, deployBlock);
+      const events = await this.queryChunked(vaultContract, filter, deployBlock, provider);
 
       if (!events || events.length === 0) return [];
 
@@ -332,8 +349,8 @@ export class Web3Service {
       const withdrawFilter = vaultContract.filters.Withdraw(null, null, account);
 
       const [deposits, withdrawals] = await Promise.all([
-        vaultContract.queryFilter(depositFilter, deployBlock),
-        vaultContract.queryFilter(withdrawFilter, deployBlock)
+        this.queryChunked(vaultContract, depositFilter, deployBlock, provider),
+        this.queryChunked(vaultContract, withdrawFilter, deployBlock, provider)
       ]);
 
       const records: TransactionRecord[] = [];
