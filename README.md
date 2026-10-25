@@ -1,10 +1,11 @@
 🌐 **English** | [Español](README.es.md)
 
-# ArbiAgent — AI-Powered DeFi Vault on Arbitrum
+# ArbiAgent — AI-Powered DeFi Vaults on Arbitrum
 
-> ERC-4626 vault on Arbitrum combining real DeFi yield (Aave V3)
-> with AI-driven rebalancing decisions, verified on-chain
-> via cryptographic signatures (EIP-712).
+> Three independent ERC-4626 vaults on Arbitrum (Conservative, Moderate,
+> Aggressive) combining real DeFi yield (Aave V3) with AI-driven
+> rebalancing decisions, verified on-chain via cryptographic
+> signatures (EIP-712).
 
 Project built for the EthLima Hackathon 2026,
 category **AI - Blockchain**.
@@ -38,11 +39,12 @@ that the system is acting exactly as it claims to.
 
 ## The Solution
 
-A vault where:
+A set of vaults, one per risk profile, where:
 
-1. The user deposits an asset and receives shares (ERC-4626 standard).
+1. The user picks a risk mode, deposits USDC into that mode's vault and
+   receives shares (ERC-4626 standard).
 2. An **AI agent** analyzes market data and decides how to allocate
-   capital.
+   that vault's capital, within the limits of its risk mode.
 3. That decision is **cryptographically signed** off-chain and only
    executed on-chain if the signature is valid — the contract never
    blindly trusts who calls the function, only who signed it.
@@ -53,16 +55,41 @@ A vault where:
 
 ---
 
+## Risk Modes and Vaults
+
+Each risk mode is its own smart contract, with its own pool of funds,
+its own shares, its own rebalance cooldown and its own exposure limits.
+Funds are **not shared between modes**: depositing in Moderate does not
+put any money in Conservative or Aggressive.
+
+| Mode | Rebalance cooldown | Contract (Arbitrum Sepolia) |
+|---|---|---|
+| Conservative | 24 hours | [`0xc4e031259cA7d2390408F10608fAE03982a47F39`](https://sepolia.arbiscan.io/address/0xc4e031259cA7d2390408F10608fAE03982a47F39) |
+| Moderate | 8 hours | [`0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8`](https://sepolia.arbiscan.io/address/0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8) |
+| Aggressive | 2 hours | [`0x1D48956912c301C0Da67A10F3bC47BB2c8dEad0d`](https://sepolia.arbiscan.io/address/0x1D48956912c301C0Da67A10F3bC47BB2c8dEad0d) |
+
+Moving a position from one mode to another means withdrawing from one
+vault and depositing into the other (two separate transactions, plus
+the USDC approval). Nothing blocks the user from holding positions in
+several modes at once.
+
+Within a vault, the AI rebalances the **whole vault**, not each user
+individually. A rebalance only moves funds between "idle USDC" and
+"supplied to Aave" inside the contract: it never touches anyone's
+shares, and a withdrawal only burns the shares of the wallet that
+requests it.
+
+---
+
 ## Architecture
 
 ```
-┌─────────────┐      EIP-712 signature   ┌──────────────────┐
-│  AI Agent   │ ───────────────────────▶│  Smart Contract   │
-│  (Python)   │                          │  ArbiAgentVault    │
-└─────────────┘                          │  (ERC-4626)         │
-      ▲                                  └────────┬───────────┘
-      │ market data                               │ supply/withdraw
-      │                                            ▼
+┌─────────────┐      EIP-712 signature   ┌──────────────────────┐
+│  AI Agent   │ ───────────────────────▶│  Vault of the chosen   │
+│  (Python)   │   (domain = that vault)   │  mode (ERC-4626)        │
+└─────────────┘                          └──────────┬───────────┘
+      ▲                                              │ supply/withdraw
+      │ market data (of that vault)                  ▼
 ┌─────────────┐                          ┌──────────────────┐
 │  API/Server │                          │   Aave V3 Pool     │
 │  (FastAPI)  │                          │   (Arbitrum)        │
@@ -70,7 +97,7 @@ A vault where:
       ▲
       │ REST (protected by internal API key)
 ┌─────────────┐
-│  Frontend    │
+│  Frontend    │  one global risk mode → one vault
 │  (React)     │
 └─────────────┘
 ```
@@ -83,6 +110,13 @@ if the signature matches the AI agent's private key — this allows
 cryptographic, on-chain verification that the signal truly came from
 the AI and was not forged or altered.
 
+**One signature per vault:** the EIP-712 domain includes the address of
+the target vault (`verifyingContract`), so a signal signed for one mode
+cannot be replayed on another. The same AI agent address is authorized
+(`aiAgent`) in all three contracts. The backend decides which vault to
+sign for from the requested mode, and rejects any `vault_address` that
+does not match that mode.
+
 ---
 
 ## Repository Structure
@@ -91,8 +125,11 @@ the AI and was not forged or altered.
 ArbiAgent/
 ├── client/            # Frontend (React + Vite + TypeScript)
 ├── contracts/          # Smart contracts (Foundry)
-│   ├── src/             # ArbiAgentVault.sol
-│   └── test/             # Foundry tests
+│   ├── src/             # ArbiAgentVault.sol (Moderate),
+│   │                    # ArbiAgentConservativeVault.sol,
+│   │                    # ArbiAgentAggressiveVault.sol
+│   ├── script/           # One deploy script per vault
+│   └── test/             # Foundry tests (per vault + mode isolation)
 ├── server/              # Backend / AI agent (Python)
 ├── docs/                 # Cross-team integration documentation
 │   ├── ARQUITECTURA.md
@@ -137,9 +174,21 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The `/api/v1/rebalance` endpoint requires an `X-API-Key` header
-matching `INTERNAL_API_KEY` (set in `server/.env`). All other
-endpoints are open (read-only).
+Required variables in `server/.env` (see `server/.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `AI_AGENT_ADDRESS` / `AI_AGENT_PRIVATE_KEY` | Agent that signs the signals (must be the `aiAgent` of all three vaults) |
+| `VAULT_CONTRACT_ADDRESS` | Moderate vault |
+| `VAULT_ADDRESS_CONSERVADOR` | Conservative vault |
+| `VAULT_ADDRESS_AGRESIVO` | Aggressive vault |
+| `INTERNAL_API_KEY` | Key expected in the `X-API-Key` header of `/api/v1/rebalance` |
+| `GEMINI_API_KEYS` | Gemini key pool (comma-separated) |
+
+If the vault of the requested mode is not configured, `/api/v1/rebalance`
+answers `503`; if the request carries a `vault_address` that does not
+match the mode, it answers `400`. All other endpoints are open
+(read-only).
 
 ### Frontend
 
@@ -157,36 +206,42 @@ docker compose up
 
 ---
 
-## Deployed Contract
+## Deployed Contracts
 
-| Network | Address |
-|---|---|
-| Arbitrum Sepolia | [`0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8`](https://sepolia.arbiscan.io/address/0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8) |
+| Mode | Network | Address |
+|---|---|---|
+| Moderate | Arbitrum Sepolia | [`0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8`](https://sepolia.arbiscan.io/address/0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8) |
+| Conservative | Arbitrum Sepolia | [`0xc4e031259cA7d2390408F10608fAE03982a47F39`](https://sepolia.arbiscan.io/address/0xc4e031259cA7d2390408F10608fAE03982a47F39) |
+| Aggressive | Arbitrum Sepolia | [`0x1D48956912c301C0Da67A10F3bC47BB2c8dEad0d`](https://sepolia.arbiscan.io/address/0x1D48956912c301C0Da67A10F3bC47BB2c8dEad0d) |
 
-Deployment tx: [`0x70fa62c8...df833802`](https://sepolia.arbiscan.io/tx/0x70fa62c8ca687b0c181447f0e807e0aa7e22a66e59e6268323eab5a0df833802)
+Moderate deployment tx: [`0x70fa62c8...df833802`](https://sepolia.arbiscan.io/tx/0x70fa62c8ca687b0c181447f0e807e0aa7e22a66e59e6268323eab5a0df833802)
 
-This is the final version deployed for the hackathon, including the
-on-chain rebalance cooldown and the fixes identified by static
-analysis (see [Security & Testing](#security--testing) below).
+The Moderate vault is the version deployed for the hackathon submission,
+including the on-chain rebalance cooldown and the fixes identified by
+static analysis (see [Security & Testing](#security--testing) below).
+The Conservative and Aggressive vaults were deployed afterwards with the
+same logic and their own cooldown and exposure parameters.
 
 ---
 
 ## Security & Testing
 
-- **12/12 unit tests passing** with Foundry (`forge test -vv`),
-  covering deposits, AI signal execution, signature validation,
+- **Unit tests with Foundry** (`forge test -vv`) for each of the three
+  vaults, covering deposits, AI signal execution, signature validation,
   nonce replay protection, admin access control, performance fee
   collection, just-in-time liquidity recovery on withdrawal, and the
-  **8-hour rebalance cooldown** (tested explicitly: blocks immediately
-  after execution, still blocks one second before the cooldown ends,
-  and succeeds exactly when it elapses).
+  rebalance cooldown (tested explicitly: blocks immediately after
+  execution, still blocks one second before the cooldown ends, and
+  succeeds exactly when it elapses). A dedicated suite
+  (`ArbiAgentModeIsolation.t.sol`) checks that the vaults are isolated
+  from each other.
 - **Static analysis with [Slither](https://github.com/crytic/slither)**
-  was run against the contract; findings that applied to our own code
-  (unused return values, local variable shadowing, a missing event on
-  a setter) were fixed. Remaining findings are either informational
-  (timestamp usage in `require` checks, which is the expected pattern
-  for deadlines/cooldowns) or belong to OpenZeppelin's audited
-  library code. Full report: [`docs/SLITHER_REPORT.txt`](docs/SLITHER_REPORT.txt)
+  was run against the Moderate contract; findings that applied to our
+  own code (unused return values, local variable shadowing, a missing
+  event on a setter) were fixed. Remaining findings are either
+  informational (timestamp usage in `require` checks, which is the
+  expected pattern for deadlines/cooldowns) or belong to OpenZeppelin's
+  audited library code. Full report: [`docs/SLITHER_REPORT.txt`](docs/SLITHER_REPORT.txt)
 - **Aave V3 integration addresses were verified against the official
   [`aave-address-book`](https://github.com/aave-dao/aave-address-book)**
   registry for Arbitrum Sepolia before deployment (Pool, USDC
@@ -198,6 +253,8 @@ analysis (see [Security & Testing](#security--testing) below).
   not a substitute for a production-grade auth system — the key is
   bundled into the frontend build and is not meant to be secret from
   a determined attacker.
+- The backend never signs for an arbitrary contract address: the vault
+  is derived from the requested mode on the server side.
 
 ---
 
@@ -206,7 +263,7 @@ analysis (see [Security & Testing](#security--testing) below).
 The complete flow — deposit, EIP-712 signature from the AI agent,
 on-chain execution, and withdrawal with automatic liquidity recovery
 from Aave — was executed with real transactions on Arbitrum Sepolia
-against the current deployment
+against the Moderate vault
 ([`0x6Ab1F75e...A0Df8`](https://sepolia.arbiscan.io/address/0x6Ab1F75e863730de07b68fF87B67717d36cA0Df8)),
 triggered from the live frontend:
 
@@ -235,14 +292,20 @@ signal submitted right away is rejected on-chain with
   beats a shallow simulation of several. The AI agent is designed to
   evaluate multiple yield sources in the future, not coupled to a
   single protocol.
-- **Single risk mode (Moderate) for this deployment**: the contract
-  and decision engine support Conservative / Moderate / Aggressive
-  risk profiles, but for this hackathon only the Moderate vault
-  (8-hour cooldown, 80% max Aave exposure) is deployed. Conservative
-  and Aggressive are on the roadmap as separate, independent vault
-  contracts — each with its own isolated pool of funds, cooldown, and
-  exposure limits — rather than a single shared vault with a
-  selectable mode.
+- **One independent vault per risk mode**: Conservative (24 h
+  cooldown), Moderate (8 h) and Aggressive (2 h) are three separate
+  contracts, each with its own isolated pool of funds, shares,
+  cooldown and exposure limits, rather than a single shared vault with
+  a selectable mode. This keeps each profile's risk limits enforced by
+  its own contract and makes a bug or an unfavorable rebalance in one
+  mode unable to affect the funds of another.
+- **Mode is a choice of vault, not a setting on your money**: choosing
+  a mode in the interface changes which vault the Vault, AI Strategy
+  and Activity tabs read from and send transactions to. It does not
+  reconfigure an existing position. To change mode with funds already
+  deposited, the user withdraws from the current vault and deposits
+  into the new one. There is no on-chain restriction on doing so, and
+  the contracts allow positions in several modes at once.
 - **Just-in-time liquidity**: the vault automatically recovers funds
   from Aave at withdrawal time, so the user never sees a transaction
   fail just because capital was "at work."
@@ -256,10 +319,21 @@ signal submitted right away is rejected on-chain with
   code path is not active yet in this deployment.
 - **EIP-712 verification**: every rebalance signal is signed off-chain
   and verified on-chain, preventing the contract from relying solely
-  on `msg.sender`-based access control.
-- **On-chain rebalance cooldown**: a fixed 8-hour cooldown between
-  `executeSignal()` calls is enforced by the contract itself (not
-  just shown in the UI), shared by the whole vault — not per user.
+  on `msg.sender`-based access control. The domain includes the vault
+  address, so a signature is only valid for the vault it was issued for.
+- **On-chain rebalance cooldown**: a fixed cooldown between
+  `executeSignal()` calls (24 h / 8 h / 2 h depending on the vault) is
+  enforced by the contract itself (not just shown in the UI), shared by
+  the whole vault — not per user.
+- **Event queries in block ranges**: the public Arbitrum Sepolia RPC
+  rejects `eth_getLogs` queries spanning more than 10M blocks, so the
+  frontend reads deposit, withdrawal and rebalance events in chunks
+  starting from each vault's deployment block.
+- **Displayed performance (PnL)**: calculated as current value minus
+  net principal (deposits minus withdrawals of the connected wallet in
+  that vault). It therefore includes yield that was already withdrawn
+  earlier, and it is an approximation, not an accounting of realized
+  and unrealized gains.
 
 ---
 
@@ -270,7 +344,7 @@ signal submitted right away is rejected on-chain with
 | Contratos inteligentes / Integración on-chain | Jesús Alfaro |
 | Agente de IA / Middleware | Dante Olivas |
 | Frontend / UX / Wallets | Geraldin Nuñez / Dante Olivas |
-| Producto / API de backend | Dante Olivas / Jesús Alfaro |
+| Producto / API de backend | Jesús Alfaro |
 
 ---
 
