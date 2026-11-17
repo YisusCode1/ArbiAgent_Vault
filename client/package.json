@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^17.4.0",
+    "buffer": "^6.0.3",
     "ethers": "^6.11.1",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.344.0",
