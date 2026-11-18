@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import { TransactionBuilder, Networks } from "@stellar/stellar-sdk";
-import { Web3Context } from "./Web3Context";
+import React, { createContext, useState, useCallback, ReactNode } from "react";
+import { useWeb3 } from "../hooks/useWeb3";
 import {
-  buildDepositForBurnTx,
-  connectStellarInMetaMask,
+  connectStellarSnap,
   getStellarUsdcBalance,
-  signStellarTxWithMetaMask,
-  sorobanServer,
+  buildAndSubmitBridgeTx,
+  pollCircleAttestation,
+  claimUsdcOnArbitrum,
 } from "../services/stellarBridgeService";
 
 export type BridgeStatus =
@@ -14,108 +13,96 @@ export type BridgeStatus =
   | "building"
   | "signing"
   | "submitting"
+  | "attesting"
+  | "claiming"
   | "completed"
   | "error";
 
-interface BridgeContextType {
+export interface BridgeContextType {
   stellarAccount: string | null;
   stellarUsdcBalance: string;
   status: BridgeStatus;
   txHash: string | null;
+  messageHash: string | null;
+  arbitrumTxHash: string | null;
   error: string | null;
   connectStellarAccount: () => Promise<void>;
+  bridgeUsdcToArbitrum: (amountUsdc: string) => Promise<void>;
   refreshStellarBalance: () => Promise<void>;
-  bridgeUsdcToArbitrum: (amountUsdc: string, customSignFn?: (xdr: string) => Promise<string>) => Promise<void>;
   resetBridge: () => void;
 }
 
-const BridgeContext = createContext<BridgeContextType | undefined>(undefined);
+export const BridgeContext = createContext<BridgeContextType | undefined>(undefined);
 
 export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const web3 = useContext(Web3Context);
+  const { wallet } = useWeb3();
   const [stellarAccount, setStellarAccount] = useState<string | null>(null);
   const [stellarUsdcBalance, setStellarUsdcBalance] = useState<string>("0.00");
   const [status, setStatus] = useState<BridgeStatus>("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [messageHash, setMessageHash] = useState<string | null>(null);
+  const [arbitrumTxHash, setArbitrumTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshStellarBalance = useCallback(async (addr?: string) => {
+    const target = addr || stellarAccount;
+    if (!target) return;
+    const bal = await getStellarUsdcBalance(target);
+    setStellarUsdcBalance(bal);
+  }, [stellarAccount]);
 
   const connectStellarAccount = useCallback(async () => {
     try {
       setError(null);
-      const address = await connectStellarInMetaMask();
-      setStellarAccount(address);
-      const bal = await getStellarUsdcBalance(address);
-      setStellarUsdcBalance(bal);
+      const addr = await connectStellarSnap();
+      setStellarAccount(addr);
+      await refreshStellarBalance(addr);
     } catch (err: any) {
-      setError(err?.message || "No se pudo conectar la cuenta de Stellar en MetaMask.");
+      setError(err.message || "Error al conectar Stellar Snap.");
     }
-  }, []);
+  }, [refreshStellarBalance]);
 
-  const refreshStellarBalance = useCallback(async () => {
-    if (!stellarAccount) return;
-    const bal = await getStellarUsdcBalance(stellarAccount);
-    setStellarUsdcBalance(bal);
-  }, [stellarAccount]);
+  const bridgeUsdcToArbitrum = useCallback(async (amountUsdc: string) => {
+    if (!stellarAccount) return setError("Conecta tu cuenta de Stellar primero.");
+    if (!wallet.account) return setError("Conecta tu wallet de Arbitrum primero.");
 
-  const bridgeUsdcToArbitrum = async (
-    amountUsdc: string,
-    customSignFn?: (xdr: string) => Promise<string>
-  ) => {
     try {
       setError(null);
-      setTxHash(null);
-
-      const evmRecipient = web3?.wallet.account;
-      if (!evmRecipient) {
-        throw new Error("Conecta primero tu wallet EVM en MetaMask (Arbitrum).");
-      }
-      if (!stellarAccount) {
-        throw new Error("Activa primero tu cuenta Stellar dentro de MetaMask.");
-      }
-
       setStatus("building");
-      const unsignedXdr = await buildDepositForBurnTx({
-        stellarSender: stellarAccount,
+
+      const { txHash: sHash, messageHex, messageHash: mHash } = await buildAndSubmitBridgeTx(
+        stellarAccount,
         amountUsdc,
-        evmRecipient,
-      });
+        wallet.account,
+        () => setStatus("signing"),
+        () => setStatus("submitting")
+      );
 
-      setStatus("signing");
-      const signFn = customSignFn || signStellarTxWithMetaMask;
-      const signedXdr = await signFn(unsignedXdr);
+      setTxHash(sHash);
+      setMessageHash(mHash);
 
-      setStatus("submitting");
-      const tx = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);
-      const sendResponse = await sorobanServer.sendTransaction(tx);
+      setStatus("attesting");
+      const { attestation } = await pollCircleAttestation(mHash);
 
-      if (sendResponse.status === "ERROR") {
-        throw new Error(`Error al enviar transacción: ${sendResponse.errorResult}`);
-      }
+      setStatus("claiming");
+      const { arbitrumTxHash: arbHash } = await claimUsdcOnArbitrum(messageHex, attestation);
+      setArbitrumTxHash(arbHash);
 
-      let getResponse = await sorobanServer.getTransaction(sendResponse.hash);
-      while (getResponse.status === "NOT_FOUND") {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        getResponse = await sorobanServer.getTransaction(sendResponse.hash);
-      }
-
-      if (getResponse.status === "SUCCESS") {
-        setTxHash(sendResponse.hash);
-        setStatus("completed");
-        await refreshStellarBalance();
-      } else {
-        throw new Error(`Transacción fallida en Soroban: ${getResponse.status}`);
-      }
+      setStatus("completed");
+      await refreshStellarBalance();
     } catch (err: any) {
-      setError(err?.message || "Error inesperado al ejecutar el puente.");
       setStatus("error");
+      setError(err.message || "Error durante el flujo del puente.");
     }
-  };
+  }, [stellarAccount, wallet.account, refreshStellarBalance]);
 
-  const resetBridge = () => {
+  const resetBridge = useCallback(() => {
     setStatus("idle");
     setTxHash(null);
+    setMessageHash(null);
+    setArbitrumTxHash(null);
     setError(null);
-  };
+  }, []);
 
   return (
     <BridgeContext.Provider
@@ -124,22 +111,16 @@ export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         stellarUsdcBalance,
         status,
         txHash,
+        messageHash,
+        arbitrumTxHash,
         error,
         connectStellarAccount,
-        refreshStellarBalance,
         bridgeUsdcToArbitrum,
+        refreshStellarBalance: () => refreshStellarBalance(),
         resetBridge,
       }}
     >
       {children}
     </BridgeContext.Provider>
   );
-};
-
-export const useBridgeContext = () => {
-  const context = useContext(BridgeContext);
-  if (!context) {
-    throw new Error("useBridgeContext debe usarse dentro de un BridgeProvider");
-  }
-  return context;
 };
