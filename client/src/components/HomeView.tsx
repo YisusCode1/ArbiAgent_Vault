@@ -5,7 +5,6 @@ import { useVault } from '../hooks/useVault';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useStrategy } from '../hooks/useStrategy';
 import { useBridge } from '../hooks/useBridge';
-import { BridgeTransferPanel } from './BridgeTransferPanel';
 import { formatUSD, formatPercent, shortAddress } from '../utils/format';
 
 interface HomeViewProps {
@@ -34,108 +33,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 text-slate-100">
-      <section className="mb-8 space-y-5">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-white">
-              Hola, Yield Hunter <span aria-hidden="true">👋</span>
-            </h1>
-            <p className="mt-2 text-sm text-slate-400">Descubre las mejores oportunidades DeFi con ArbiAgent</p>
-          </div>
-          <div className="hidden text-right sm:block">
-            <p className="text-xs text-slate-500">Valor total de tu portafolio</p>
-            <p className="mt-1 text-3xl font-bold text-white">
-              {formatUSD(
-                Number(metrics.userAssets) + Number(stellarUsdcBalance) + Number(wallet.evmUsdcBalance || 0)
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-3 text-sm font-semibold text-slate-200">Tus saldos disponibles</p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <article className="rounded-2xl border border-cyan-500/15 bg-[#08111f] p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">$</span>
-                <div>
-                  <p className="font-semibold text-white">USDC</p>
-                  <p className="text-[10px] text-slate-500">Stellar</p>
-                </div>
-              </div>
-              <p className="mt-4 text-2xl font-bold text-white">
-                {Number(stellarUsdcBalance).toFixed(2)} <small className="text-xs">USDC</small>
-              </p>
-              <button
-                onClick={() => (stellarAccount ? void refreshStellarBalance() : void connectStellarAccount())}
-                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
-              >
-                {stellarAccount ? 'Actualizar' : 'Conectar'}
-              </button>
-            </article>
-
-            <article className="rounded-2xl border border-blue-500/15 bg-[#08111f] p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg text-cyan-300">◆</span>
-                <div>
-                  <p className="font-semibold text-white">USDC</p>
-                  <p className="text-[10px] text-slate-500">Ethereum</p>
-                </div>
-              </div>
-              <p className="mt-4 text-2xl font-bold text-white">
-                0.00 <small className="text-xs">USDC</small>
-              </p>
-              <button
-                disabled
-                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
-              >
-                Próximamente
-              </button>
-            </article>
-
-            <article className="rounded-2xl border border-emerald-500/15 bg-[#08111f] p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg text-emerald-300">₮</span>
-                <div>
-                  <p className="font-semibold text-white">USDT</p>
-                  <p className="text-[10px] text-slate-500">Ethereum</p>
-                </div>
-              </div>
-              <p className="mt-4 text-2xl font-bold text-white">
-                0.00 <small className="text-xs">USDT</small>
-              </p>
-              <button
-                disabled
-                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
-              >
-                Próximamente
-              </button>
-            </article>
-
-            <article className="rounded-2xl border border-cyan-500/15 bg-[#08111f] p-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">$</span>
-                <div>
-                  <p className="font-semibold text-white">USDC</p>
-                  <p className="text-[10px] text-slate-500">Arbitrum</p>
-                </div>
-              </div>
-              <p className="mt-4 text-2xl font-bold text-white">
-                {Number(wallet.evmUsdcBalance || 0).toFixed(2)} <small className="text-xs">USDC</small>
-              </p>
-              <button
-                onClick={() => (wallet.isConnected ? onNavigate("vault") : void connectWallet())}
-                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
-              >
-                {wallet.isConnected ? "Depositar" : "Conectar"}
-              </button>
-            </article>
-          </div>
-        </div>
-
-        <BridgeTransferPanel />
-      </section>
-
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -168,6 +65,107 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
               </span>
             </p>
           </motion.div>
+
+      <div className="mt-6 space-y-4 border-t border-white/10 pt-6">
+        <div className="flex items-end justify-between gap-3.5">
+          <div>
+            <h1 className="text-2xl font-semibold text-white">
+              Hola, Yield Hunter <span aria-hidden="true">👋</span>
+            </h1>
+            <p className="mt-2 text-sm text-slate-400">Descubre las mejores oportunidades DeFi con ArbiAgent</p>
+          </div>
+          <div className="hidden text-right sm:block">
+            <p className="text-xs text-slate-500">Valor total de tu portafolio</p>
+            <p className="mt-1 text-2xl font-bold text-white">
+              {formatUSD(
+                Number(metrics.userAssets) + Number(stellarUsdcBalance) + Number(wallet.evmUsdcBalance || 0)
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-3 text-sm font-semibold text-slate-200">Tus saldos disponibles</p>
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <article className="rounded-2xl border border-cyan-500/15 bg-[#08111f] p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">$</span>
+                <div>
+                  <p className="font-semibold text-white">USDC</p>
+                  <p className="text-[10px] text-slate-500">Stellar</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xl font-bold text-white">
+                {Number(stellarUsdcBalance).toFixed(2)} <small className="text-xs">USDC</small>
+              </p>
+              <button
+                onClick={() => (stellarAccount ? onNavigate("vault") : void connectStellarAccount())}
+                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
+              >
+                {stellarAccount ? 'Depositar' : 'Conectar'}
+              </button>
+            </article>
+
+            <article className="rounded-2xl border border-blue-500/15 bg-[#08111f] p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-lg text-cyan-300">◆</span>
+                <div>
+                  <p className="font-semibold text-white">USDC</p>
+                  <p className="text-[10px] text-slate-500">Ethereum</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xl font-bold text-white">
+                0.00 <small className="text-xs">USDC</small>
+              </p>
+              <button
+                disabled
+                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
+              >
+                Próximamente
+              </button>
+            </article>
+
+            <article className="rounded-2xl border border-emerald-500/15 bg-[#08111f] p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-lg text-emerald-300">₮</span>
+                <div>
+                  <p className="font-semibold text-white">USDT</p>
+                  <p className="text-[10px] text-slate-500">Ethereum</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xl font-bold text-white">
+                0.00 <small className="text-xs">USDT</small>
+              </p>
+              <button
+                disabled
+                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
+              >
+                Próximamente
+              </button>
+            </article>
+
+            <article className="rounded-2xl border border-cyan-500/15 bg-[#08111f] p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">$</span>
+                <div>
+                  <p className="font-semibold text-white">USDC</p>
+                  <p className="text-[10px] text-slate-500">Arbitrum</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xl font-bold text-white">
+                {Number(wallet.evmUsdcBalance || 0).toFixed(2)} <small className="text-xs">USDC</small>
+              </p>
+              <button
+                onClick={() => (wallet.isConnected ? onNavigate("vault") : void connectWallet())}
+                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
+              >
+                {wallet.isConnected ? "Depositar" : "Conectar"}
+              </button>
+            </article>
+          </div>
+        </div>
+
+          </div>
         </section>
 
         <aside className="space-y-6 rounded-[36px] border border-white/10 bg-[#08111f]/95 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.35)]">
