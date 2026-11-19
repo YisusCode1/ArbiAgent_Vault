@@ -86,10 +86,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 0.00 <small className="text-xs">USDC</small>
               </p>
               <button
-                onClick={connectWallet}
-                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
+                disabled
+                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
               >
-                Depositar
+                Próximamente
               </button>
             </article>
 
@@ -105,10 +105,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 0.00 <small className="text-xs">USDT</small>
               </p>
               <button
-                onClick={connectWallet}
-                className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
+                disabled
+                className="mt-4 w-full rounded-lg bg-slate-800/80 py-2 text-xs font-semibold text-slate-500 cursor-not-allowed"
               >
-                Depositar
+                Próximamente
               </button>
             </article>
 
@@ -124,10 +124,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
                 {Number(wallet.evmUsdcBalance || 0).toFixed(2)} <small className="text-xs">USDC</small>
               </p>
               <button
-                onClick={() => void refreshEvmBalances()}
+                onClick={() => (wallet.isConnected ? onNavigate("vault") : void connectWallet())}
                 className="mt-4 w-full rounded-lg bg-gradient-to-r from-[#4a6aa3] to-[#d4af5f] py-2 text-xs font-semibold text-slate-950"
               >
-                Actualizar
+                {wallet.isConnected ? "Depositar" : "Conectar"}
               </button>
             </article>
           </div>
