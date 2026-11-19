@@ -18,6 +18,7 @@ export interface WalletState {
   isDemo: boolean;
   error: string | null;
   balance: string;
+  evmUsdcBalance: string;
 }
 
 export interface StrategyResponse {
@@ -71,4 +72,33 @@ export interface TransactionRecord {
   hash: string;
   timestampMs?: number;
   fullHash?: string;
+}
+
+export interface StellarWalletState {
+  account: string | null;
+  usdcBalance: string;
+  isConnected: boolean;
+  isConnecting: boolean;
+  network: 'testnet';
+  error: string | null;
+}
+
+export type BridgeStatus =
+  | 'idle'
+  | 'building'
+  | 'signing'
+  | 'submitting'
+  | 'attesting'
+  | 'claiming'
+  | 'completed'
+  | 'error';
+
+export interface BridgeState {
+  stellarAccount: string | null;
+  stellarUsdcBalance: string;
+  status: BridgeStatus;
+  txHash: string | null;
+  messageHash: string | null;
+  arbitrumTxHash: string | null;
+  error: string | null;
 }

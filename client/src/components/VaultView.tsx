@@ -3,6 +3,8 @@ import { Layers, Info, RefreshCw, AlertTriangle, CheckCircle, ArrowUpRight, Wall
 import { useWeb3 } from '../hooks/useWeb3';
 import { useVault, CONVERSION_RATE } from '../hooks/useVault';
 import { useStrategy } from '../hooks/useStrategy';
+import { useBridge } from '../hooks/useBridge';
+import { BridgeTransferPanel } from './BridgeTransferPanel';
 import { ARBITRUM_SEPOLIA_EXPLORER, ARBITRUM_SEPOLIA_CHAIN_ID } from '../config/constants';
 import { formatUSD, formatPercent, riskLabel, modeLabel } from '../utils/format';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -17,7 +19,17 @@ const ACTION_LABELS: Record<string, string> = {
 const toPercent = (v: number) => (v <= 1 ? v * 100 : v);
 
 export const VaultView: React.FC = () => {
-  const { wallet, connectWallet, switchNetwork } = useWeb3();
+  const { wallet, connectWallet, switchNetwork, refreshEvmBalances } = useWeb3();
+  const {
+    stellarAccount,
+    stellarUsdcBalance,
+    status: bridgeStatus,
+    isRefreshingBalance,
+    error: bridgeError,
+    connectStellarAccount,
+    disconnectStellarAccount,
+    refreshStellarBalance,
+  } = useBridge();
   const isWrongNetwork = wallet.isConnected && wallet.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID;
   const { metrics, usdcBalance, isProcessing, txHash, error, deposit, withdraw } = useVault();
   const { strategy, hasLoaded, riskMode, riskModes } = useStrategy();
@@ -137,6 +149,62 @@ export const VaultView: React.FC = () => {
             </span>
             <span className="text-xs text-zinc-500">Net return</span>
           </div>
+        </div>
+      </div>
+
+      {/* Saldos multired y conexión Stellar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-zinc-500">Arbitrum Sepolia</p>
+              <p className="mt-2 text-2xl font-bold text-white">{wallet.evmUsdcBalance} USDC</p>
+            </div>
+            <button
+              onClick={() => void refreshEvmBalances()}
+              className="rounded-lg border border-zinc-700 p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              title="Refresh Arbitrum USDC balance"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            {wallet.account ? 'Wallet EVM conectada' : 'Conecta MetaMask para leer el saldo'}
+          </p>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-zinc-500">Stellar Testnet</p>
+              <p className="mt-2 text-2xl font-bold text-white">{stellarUsdcBalance} USDC</p>
+            </div>
+            {stellarAccount && (
+              <button
+                onClick={() => void refreshStellarBalance()}
+                disabled={isRefreshingBalance}
+                className="rounded-lg border border-zinc-700 p-2 text-zinc-400 hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+                title="Refresh Stellar USDC balance"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshingBalance ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+          </div>
+          {stellarAccount ? (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="truncate text-xs text-zinc-500" title={stellarAccount}>{stellarAccount}</p>
+              <button onClick={disconnectStellarAccount} className="text-xs text-rose-400 hover:text-rose-300">Disconnect</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => void connectStellarAccount()}
+              disabled={bridgeStatus === 'signing' || bridgeStatus === 'submitting'}
+              className="mt-3 w-full rounded-lg border border-cyan-500/20 bg-cyan-500/10 py-2 text-xs font-medium text-cyan-300 hover:bg-cyan-500/15"
+            >
+              Connect Stellar Snap
+            </button>
+          )}
+          {bridgeError && <p className="mt-2 text-xs text-rose-400">{bridgeError}</p>}
         </div>
       </div>
 
