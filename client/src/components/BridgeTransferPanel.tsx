@@ -24,6 +24,7 @@ export const BridgeTransferPanel: React.FC = () => {
   } = useBridge();
 
   const [amount, setAmount] = useState('');
+  const [targetMode, setTargetMode] = useState<'conservador' | 'moderado' | 'agresivo'>('moderado');
   const [confirmed, setConfirmed] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
 
@@ -58,7 +59,7 @@ export const BridgeTransferPanel: React.FC = () => {
 
   const handleSubmit = async () => {
     setProgressOpen(true);
-    await bridgeUsdcToArbitrum(amount);
+    await bridgeUsdcToArbitrum(amount, targetMode);
   };
 
   return (
@@ -149,6 +150,30 @@ export const BridgeTransferPanel: React.FC = () => {
               <p className="text-zinc-500">Destination</p>
               <p className="mt-1 text-zinc-200">Arbitrum Sepolia</p>
               <p className="mt-1 truncate font-mono text-zinc-500">{wallet.account || 'No EVM wallet connected'}</p>
+            </div>
+
+            <div>
+              <p className="text-zinc-500">Target ArbiAgent Vault</p>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {([
+                  { id: 'conservador', label: 'Conservador' },
+                  { id: 'moderado', label: 'Moderado' },
+                  { id: 'agresivo', label: 'Agresivo' },
+                ] as const).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setTargetMode(m.id)}
+                    className={`rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
+                      targetMode === m.id
+                        ? 'border-[#d4af5f] bg-[#d4af5f]/15 text-[#d4af5f]'
+                        : 'border-white/10 bg-[#070b16] text-zinc-400 hover:border-white/25 hover:text-zinc-200'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-between border-t border-cyan-900/30 pt-3 text-zinc-400">
