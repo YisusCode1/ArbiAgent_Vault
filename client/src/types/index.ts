@@ -90,6 +90,7 @@ export type BridgeStatus =
   | 'submitting'
   | 'attesting'
   | 'claiming'
+  | 'depositing'
   | 'completed'
   | 'error';
 
@@ -100,5 +101,6 @@ export interface BridgeState {
   txHash: string | null;
   messageHash: string | null;
   arbitrumTxHash: string | null;
+  vaultTxHash: string | null;
   error: string | null;
 }

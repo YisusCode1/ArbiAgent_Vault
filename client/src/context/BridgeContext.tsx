@@ -9,6 +9,7 @@ import {
 import { depositForBurn } from "../services/stellarService";
 import { fetchCctpAttestation } from "../services/cctpRelayerService";
 import { ethers } from "ethers";
+import { Web3Service } from "../services/web3Service";
 
 const BRIDGE_CONTRACT_ID = import.meta.env.VITE_BRIDGE_CONTRACT_ID || 'CD2JE4VYB45A7YHDIODCRGZYUPGPPXCWQBH46I7MQBV3UAM6FRYGWXLG';
 
@@ -16,7 +17,7 @@ export interface BridgeContextType extends BridgeState {
   isRefreshingBalance: boolean;
   connectStellarAccount: () => Promise<void>;
   disconnectStellarAccount: () => void;
-  bridgeUsdcToArbitrum: (amountUsdc: string) => Promise<void>;
+  bridgeUsdcToArbitrum: (amountUsdc: string, mode?: string) => Promise<void>;
   refreshStellarBalance: () => Promise<void>;
   resetBridge: () => void;
 }
@@ -30,13 +31,14 @@ export const useBridgeContext = (): BridgeContextType => {
 };
 
 export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { wallet } = useWeb3();
+  const { wallet, refreshEvmBalances } = useWeb3();
   const [stellarAccount, setStellarAccount] = useState<string | null>(null);
   const [stellarUsdcBalance, setStellarUsdcBalance] = useState<string>("0.00");
   const [status, setStatus] = useState<BridgeStatus>("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [messageHash, setMessageHash] = useState<string | null>(null);
   const [arbitrumTxHash, setArbitrumTxHash] = useState<string | null>(null);
+  const [vaultTxHash, setVaultTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
 
@@ -81,7 +83,7 @@ export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     localStorage.removeItem("arbiagent_stellar_account");
   }, []);
 
-  const bridgeUsdcToArbitrum = useCallback(async (amountUsdc: string) => {
+  const bridgeUsdcToArbitrum = useCallback(async (amountUsdc: string, mode: string = "moderado") => {
     if (!stellarAccount) {
       setError("Conecta tu cuenta de Stellar primero.");
       return;
@@ -133,20 +135,25 @@ export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const messageHex = ethers.hexlify(ethers.toUtf8Bytes(burnResult.txHash));
       const claimed = await claimUsdcOnArbitrum(messageHex, attestation.attestation);
       setArbitrumTxHash(claimed.arbitrumTxHash);
-      setStatus(claimed.arbitrumTxHash ? "completed" : "attesting");
 
-      await refreshStellarBalance();
+      setStatus("depositing");
+      const depositHash = await Web3Service.deposit(amountUsdc, mode);
+      setVaultTxHash(depositHash);
+      setStatus("completed");
+
+      await Promise.all([refreshStellarBalance(), refreshEvmBalances()]);
     } catch (err: any) {
       setStatus("error");
       setError(err?.message || "Error durante el flujo del puente.");
     }
-  }, [stellarAccount, wallet.account, stellarUsdcBalance, refreshStellarBalance]);
+  }, [stellarAccount, wallet.account, stellarUsdcBalance, refreshStellarBalance, refreshEvmBalances]);
 
   const resetBridge = useCallback(() => {
     setStatus("idle");
     setTxHash(null);
     setMessageHash(null);
     setArbitrumTxHash(null);
+    setVaultTxHash(null);
     setError(null);
   }, []);
 
@@ -172,6 +179,7 @@ export const BridgeProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         txHash,
         messageHash,
         arbitrumTxHash,
+        vaultTxHash,
         error,
         isRefreshingBalance,
         connectStellarAccount,

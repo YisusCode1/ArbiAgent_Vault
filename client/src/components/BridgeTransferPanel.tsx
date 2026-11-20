@@ -17,6 +17,7 @@ export const BridgeTransferPanel: React.FC = () => {
     status,
     txHash,
     arbitrumTxHash,
+    vaultTxHash,
     error,
     connectStellarAccount,
     bridgeUsdcToArbitrum,
@@ -224,6 +225,7 @@ export const BridgeTransferPanel: React.FC = () => {
         error={error}
         stellarTxHash={txHash}
         arbitrumTxHash={arbitrumTxHash}
+        vaultTxHash={vaultTxHash}
         onClose={() => setProgressOpen(false)}
       />
     </section>

@@ -8,6 +8,7 @@ interface BridgeProgressModalProps {
   error: string | null;
   stellarTxHash: string | null;
   arbitrumTxHash: string | null;
+  vaultTxHash?: string | null;
   onClose: () => void;
 }
 
@@ -15,10 +16,10 @@ const STELLAR_EXPERT_URL = 'https://stellar.expert/explorer/testnet/tx';
 const ARBISCAN_TX_URL = 'https://sepolia.arbiscan.io/tx';
 
 const steps = [
-  { key: 'stellar', label: 'Sent on Stellar' },
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'bridge', label: 'CCTP bridge' },
-  { key: 'received', label: 'Received on Arbitrum' },
+  { key: 'stellar', label: 'Stellar Burn' },
+  { key: 'attesting', label: 'CCTP Attestation' },
+  { key: 'claiming', label: 'Arbitrum Claim' },
+  { key: 'depositing', label: 'Vault Deposit' },
 ];
 
 export const BridgeProgressModal: React.FC<BridgeProgressModalProps> = ({
@@ -27,14 +28,17 @@ export const BridgeProgressModal: React.FC<BridgeProgressModalProps> = ({
   error,
   stellarTxHash,
   arbitrumTxHash,
+  vaultTxHash,
   onClose,
 }) => {
   if (!open) return null;
 
-  const busy = ['building', 'signing', 'submitting', 'attesting', 'claiming'].includes(status);
+  const busy = ['building', 'signing', 'submitting', 'attesting', 'claiming', 'depositing'].includes(status);
   const activeIndex =
-    status === 'completed' ? 3 :
-    ['claiming', 'attesting'].includes(status) ? 2 :
+    status === 'completed' ? 4 :
+    status === 'depositing' ? 3 :
+    status === 'claiming' ? 2 :
+    status === 'attesting' ? 1 :
     ['submitting', 'signing', 'building'].includes(status) ? 0 :
     -1;
 
@@ -43,9 +47,15 @@ export const BridgeProgressModal: React.FC<BridgeProgressModalProps> = ({
       <div className="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#070b16] p-6 shadow-[0_40px_80px_rgba(0,0,0,0.5)]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-[#d4af5f]">CCTP cross-chain transfer</p>
+            <p className="text-xs uppercase tracking-[0.25em] text-[#d4af5f]">CCTP cross-chain + Auto-Deposit</p>
             <h2 className="mt-1 text-xl font-bold text-white">
-              {status === 'completed' ? 'USDC received' : status === 'error' ? 'Transfer could not complete' : 'Processing transfer'}
+              {status === 'completed'
+                ? 'USDC deposited in ArbiAgent Vault'
+                : status === 'depositing'
+                ? 'Depositing into ArbiAgent Vault...'
+                : status === 'error'
+                ? 'Transfer could not complete'
+                : 'Processing transfer'}
             </h2>
           </div>
           <button onClick={onClose} className="rounded-lg border border-zinc-800 p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white" aria-label="Close">
@@ -79,14 +89,20 @@ export const BridgeProgressModal: React.FC<BridgeProgressModalProps> = ({
         <div className="mt-6 space-y-3">
           {stellarTxHash && (
             <a href={`${STELLAR_EXPERT_URL}/${stellarTxHash}`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-xs text-zinc-300 hover:border-cyan-500/30">
-              <span>View Stellar transaction</span>
+              <span>View Stellar burn transaction</span>
               <ExternalLink className="h-4 w-4 text-cyan-400" />
             </a>
           )}
           {arbitrumTxHash && (
             <a href={`${ARBISCAN_TX_URL}/${arbitrumTxHash}`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-xs text-zinc-300 hover:border-cyan-500/30">
-              <span>View Arbitrum transaction</span>
+              <span>View Arbitrum CCTP claim</span>
               <ExternalLink className="h-4 w-4 text-cyan-400" />
+            </a>
+          )}
+          {vaultTxHash && (
+            <a href={`${ARBISCAN_TX_URL}/${vaultTxHash}`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-[#d4af5f]/30 bg-[#d4af5f]/10 px-4 py-3 text-xs text-[#d4af5f] hover:border-[#d4af5f]/60">
+              <span>View ArbiAgent Vault deposit</span>
+              <ExternalLink className="h-4 w-4 text-[#d4af5f]" />
             </a>
           )}
         </div>
